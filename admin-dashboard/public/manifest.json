@@ -1,0 +1,37 @@
+{
+  "name": "Scholara ERP",
+  "short_name": "Scholara",
+  "description": "Modern school management ERP for admins, teachers, students, parents, accountants, librarians, and staff.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "productivity", "business"],
+  "shortcuts": [
+    {
+      "name": "Students",
+      "short_name": "Students",
+      "url": "/students"
+    },
+    {
+      "name": "Attendance",
+      "short_name": "Attendance",
+      "url": "/attendance"
+    },
+    {
+      "name": "Fees",
+      "short_name": "Fees",
+      "url": "/fees"
+    }
+  ]
+}

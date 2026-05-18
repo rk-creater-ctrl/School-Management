@@ -1,0 +1,109 @@
+const express = require("express");
+const ClassNotice = require("../models/ClassNotice");
+
+const router = express.Router();
+
+const GLOBAL_CLASS_NAME = "__GLOBAL__";
+
+// GET /api/class-notices?className=10th&date=YYYY-MM-DD
+router.get("/", async (req, res) => {
+  try {
+    const { className, date } = req.query;
+
+    const filter = className
+      ? { className: { $in: [className, GLOBAL_CLASS_NAME] } }
+      : {};
+
+    if (date) {
+      const day = new Date(date);
+      day.setHours(0, 0, 0, 0);
+
+      filter.startDate = { $lte: day };
+      filter.expiryDate = { $gte: day };
+    }
+
+    const notices = await ClassNotice.find(filter)
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.json(notices);
+  } catch (err) {
+    console.error("Error fetching class notices", err);
+    res.status(500).json({ error: "Failed to fetch class notices" });
+  }
+});
+
+// POST /api/class-notices
+router.post("/", async (req, res) => {
+  try {
+    const data = req.body;
+
+    if (
+      !data.className ||
+      !data.title ||
+      !data.message ||
+      !data.startDate ||
+      !data.expiryDate
+    ) {
+      return res.status(400).json({
+        error: "className, title, message, startDate, expiryDate are required",
+      });
+    }
+
+    data.startDate = new Date(data.startDate);
+    data.expiryDate = new Date(data.expiryDate);
+
+    const notice = new ClassNotice(data);
+    await notice.save();
+    res.status(201).json(notice);
+  } catch (err) {
+    console.error("Error creating class notice", err);
+    res
+      .status(500)
+      .json({ error: err.message || "Failed to create notice" });
+  }
+});
+
+// PUT /api/class-notices/:id
+router.put("/:id", async (req, res) => {
+  try {
+    const data = { ...req.body };
+
+    if (data.startDate) data.startDate = new Date(data.startDate);
+    if (data.expiryDate) data.expiryDate = new Date(data.expiryDate);
+
+    const notice = await ClassNotice.findByIdAndUpdate(req.params.id, data,
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    if (!notice) {
+      return res.status(404).json({ error: "Notice not found" });
+    }
+
+    res.json(notice);
+  } catch (err) {
+    console.error("Error updating class notice", err);
+    res
+      .status(500)
+      .json({ error: err.message || "Failed to update notice" });
+  }
+});
+
+// DELETE /api/class-notices/:id
+router.delete("/:id", async (req, res) => {
+  try {
+    const notice = await ClassNotice.findByIdAndDelete(req.params.id);
+    if (!notice) {
+      return res.status(404).json({ error: "Notice not found" });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Error deleting class notice", err);
+    res.status(500).json({ error: "Failed to delete notice" });
+  }
+});
+
+module.exports = router;
