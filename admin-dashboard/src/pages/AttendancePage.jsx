@@ -2,20 +2,18 @@
 // src/pages/AttendancePage.jsx
 import { useEffect, useState } from "react";
 import { studentsAPI, attendanceAPI } from "../api";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { getAcademicYearOptions, getCurrentAcademicYearStart } from "../utils/academicYear";
 
 function AttendancePage() {
+  const [searchParams] = useSearchParams();
+  const queryClass = searchParams.get("className") || "";
   const [students, setStudents] = useState([]);
   const [classes, setClasses] = useState([]);
-  const [selectedClass, setSelectedClass] = useState("");
+  const [selectedClass, setSelectedClass] = useState(queryClass);
 
   // academic year starting from April
-  const [academicYear, setAcademicYear] = useState(() => {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = now.getMonth() + 1;
-    return m >= 4 ? y : y - 1;
-  });
+  const [academicYear, setAcademicYear] = useState(getCurrentAcademicYearStart);
 
   const [percentages, setPercentages] = useState({});
   const [loading, setLoading] = useState(true);
@@ -47,7 +45,9 @@ function AttendancePage() {
       setStudents(studentsRes.data || []);
       const list = classesRes.data || [];
       setClasses(list);
-      if (list.length && !selectedClass) {
+      if (queryClass && list.includes(queryClass)) {
+        setSelectedClass(queryClass);
+      } else if (list.length && !selectedClass) {
         setSelectedClass(list[0]);
       }
     } catch (err) {
@@ -255,13 +255,10 @@ function AttendancePage() {
               outline: "none",
             }}
           >
-            {[-1, 0, 1].map((offset) => {
-              const y = new Date().getFullYear() + offset;
-              const startY = y;
-              const label = `${startY}-${startY + 1}`;
+            {getAcademicYearOptions(academicYear).map((option) => {
               return (
-                <option key={startY} value={startY}>
-                  {label}
+                <option key={option.startYear} value={option.startYear}>
+                  {option.label}
                 </option>
               );
             })}

@@ -25,7 +25,7 @@ exports.createSchool = async (req, res) => {
       {
         name: req.body.name,
         code: code || 'SCHOOL',
-        academicYear: req.body.academicYear || '2026-27',
+        academicYear: req.body.academicYear || '2026-2027',
         contactEmail: req.body.contactEmail,
         contactPhone: req.body.contactPhone,
         address: req.body.address,

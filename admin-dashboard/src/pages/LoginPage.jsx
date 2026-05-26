@@ -2,7 +2,9 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, LockKeyhole, Mail, School, ShieldCheck } from "lucide-react";
 import { authAPI, erpAPI } from "../api";
+import { normalizeAcademicYear } from "../utils/academicYear";
 import { applySchoolBranding } from "../utils/branding";
+import { setActiveSession } from "../utils/session";
 
 function LoginPage() {
   const [form, setForm] = useState({
@@ -20,22 +22,15 @@ function LoginPage() {
   }
 
   async function completeSession(token, user) {
-    localStorage.removeItem("erp_token");
-    localStorage.removeItem("erp_user");
-    sessionStorage.removeItem("erp_token");
-    sessionStorage.removeItem("erp_user");
-
-    const storage = form.remember ? localStorage : sessionStorage;
-    storage.setItem("erp_token", token);
-    storage.setItem("erp_user", JSON.stringify({
+    setActiveSession(token, {
       name: user?.name || "",
       username: user?.username || "",
       email: user?.email || "",
       phone: user?.phone || "",
       role: user?.role || "admin",
       campus: user?.campus || "School ERP",
-      academicYear: user?.academicYear || "2026-27",
-    }));
+      academicYear: normalizeAcademicYear(user?.academicYear),
+    }, form.remember);
 
     try {
       const settings = await erpAPI.list("schoolSettings");

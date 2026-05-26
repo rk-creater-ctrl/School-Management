@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Bell,
   BookOpen,
+  BookOpenCheck,
   Bus,
   CalendarCheck,
   ChevronLeft,
@@ -12,40 +13,35 @@ import {
   FileBadge,
   History,
   GraduationCap,
+  Globe2,
   Home,
   Library,
   LogOut,
   Menu,
   Megaphone,
-  Moon,
   ReceiptText,
   Package,
   ShieldCheck,
   Sparkles,
   Settings,
-  Sun,
   Users,
   UserCog,
   UserCheck,
   X,
 } from "lucide-react";
 import { authAPI, erpAPI } from "../api";
+import { getCurrentAcademicYear } from "../utils/academicYear";
+import { clearActiveSession, getSessionUser, updateActiveUser } from "../utils/session";
 
 const fallbackUser = {
   name: "Admin User",
   role: "admin",
   campus: "School ERP",
-  academicYear: "2026-27",
+  academicYear: getCurrentAcademicYear(),
 };
 
 function getStoredUser() {
-  try {
-    const savedUser = localStorage.getItem("erp_user") || sessionStorage.getItem("erp_user");
-    if (!savedUser) return fallbackUser;
-    return { ...fallbackUser, ...JSON.parse(savedUser) };
-  } catch {
-    return fallbackUser;
-  }
+  return { ...fallbackUser, ...getSessionUser({}) };
 }
 
 const navGroups = [
@@ -55,10 +51,13 @@ const navGroups = [
       { to: "/", label: "Dashboard", icon: Home, roles: ["superadmin", "admin", "teacher", "student", "parent", "accountant", "librarian", "staff"] },
       { to: "/students", label: "Students", icon: GraduationCap, roles: ["superadmin", "teacher"] },
       { to: "/classes", label: "Classes", icon: BookOpen, roles: ["superadmin", "admin", "teacher"] },
+      { to: "/teacher", label: "Teacher Desk", icon: BookOpenCheck, roles: ["teacher"] },
       { to: "/attendance", label: "Attendance", icon: CalendarCheck, roles: ["superadmin", "admin", "teacher", "student", "parent"] },
+      { to: "/staff", label: "Staff", icon: Users, roles: ["superadmin", "admin", "accountant"] },
       { to: "/staff-attendance", label: "Staff Attendance", icon: UserCheck, roles: ["superadmin", "admin"] },
       { to: "/modules/admissions", label: "Admissions", icon: ClipboardList, roles: ["superadmin", "staff"] },
-      { to: "/documents", label: "Documents", icon: FileBadge, roles: ["superadmin", "teacher", "staff"] },
+      { to: "/website-leads", label: "Website Leads", icon: Globe2, roles: ["superadmin", "admin", "staff"] },
+      { to: "/documents", label: "Documents", icon: FileBadge, roles: ["superadmin", "staff"] },
       { to: "/notices", label: "Notices", icon: Megaphone, roles: ["superadmin", "admin", "teacher", "staff"] },
       { to: "/notifications", label: "Notifications", icon: Bell, roles: ["superadmin", "admin", "teacher", "student", "parent", "accountant", "librarian", "staff"] },
       { to: "/users", label: "Users", icon: UserCog, roles: ["superadmin", "admin"] },
@@ -69,7 +68,7 @@ const navGroups = [
     items: [
       { to: "/fees", label: "Fees", icon: CircleDollarSign, roles: ["superadmin", "accountant", "parent"] },
       { to: "/fees/collections", label: "Collections", icon: ReceiptText, roles: ["superadmin", "accountant"] },
-      { to: "/modules/staff", label: "Staff & Payroll", icon: Users, roles: ["superadmin", "accountant"] },
+      { to: "/modules/staff", label: "Staff & Payroll", icon: Users, roles: ["superadmin", "accountant", "teacher"] },
       { to: "/modules/exams", label: "Exams & Results", icon: ShieldCheck, roles: ["superadmin", "teacher", "student", "parent"] },
       { to: "/modules/lms", label: "LMS", icon: Sparkles, roles: ["superadmin", "teacher", "student"] },
     ],
@@ -77,7 +76,7 @@ const navGroups = [
   {
     label: "Campus",
     items: [
-      { to: "/modules/transport", label: "Transport", icon: Bus, roles: ["superadmin", "parent", "staff"] },
+      { to: "/modules/transport", label: "Transport", icon: Bus, roles: ["superadmin", "admin", "accountant", "staff"] },
       { to: "/modules/library", label: "Library", icon: Library, roles: ["superadmin", "librarian", "student"] },
       { to: "/modules/inventory", label: "Inventory", icon: Package, roles: ["superadmin", "staff"] },
     ],
@@ -94,8 +93,6 @@ const navGroups = [
 function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [dark, setDark] = useState(true);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(getStoredUser);
   const [notifications, setNotifications] = useState([]);
   const navigate = useNavigate();
@@ -108,7 +105,7 @@ function AdminLayout() {
       .then((res) => {
         const user = { ...fallbackUser, ...res.data.user };
         setCurrentUser(user);
-        localStorage.setItem("erp_user", JSON.stringify(user));
+        updateActiveUser(user);
       })
       .catch(() => {});
 
@@ -134,15 +131,12 @@ function AdminLayout() {
       .find((item) => (item.to === "/" ? location.pathname === "/" : location.pathname.startsWith(item.to)))?.label || "School ERP";
 
   function signOut() {
-    localStorage.removeItem("erp_token");
-    localStorage.removeItem("erp_user");
-    sessionStorage.removeItem("erp_token");
-    sessionStorage.removeItem("erp_user");
+    clearActiveSession();
     navigate("/login");
   }
 
   return (
-    <div className={dark ? "app-shell theme-dark" : "app-shell theme-light"}>
+    <div className="app-shell theme-dark">
       <button className="mobile-menu-button" onClick={() => setSidebarOpen(true)} aria-label="Open navigation">
         <Menu size={20} />
       </button>
@@ -192,10 +186,12 @@ function AdminLayout() {
             <h1>{pageTitle}</h1>
           </div>
           <div className="topbar-actions">
-            <button className="icon-button" onClick={() => setDark((value) => !value)} aria-label="Toggle theme">
-              {dark ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-            <button className="icon-button" aria-label="Notifications" onClick={() => setNotificationsOpen((value) => !value)}>
+            <button
+              className={location.pathname.startsWith("/notifications") ? "icon-button active" : "icon-button"}
+              aria-label="Notifications"
+              onClick={() => navigate("/notifications")}
+              type="button"
+            >
               <Bell size={18} />
               {notifications.length > 0 && <span className="notification-dot" />}
             </button>
@@ -210,24 +206,6 @@ function AdminLayout() {
         </header>
 
         <main className="content-panel">
-          {notificationsOpen && (
-            <section className="notifications-panel">
-              <div className="section-heading">
-                <div>
-                  <span className="eyebrow">Notifications</span>
-                  <h3>Today</h3>
-                </div>
-                <button className="ghost-button" onClick={() => navigate("/notifications")}>Open center</button>
-              </div>
-              {notifications.map((item) => (
-                <div className="activity-item" key={item._id || item.title}>
-                  <span />
-                  <p>{item.title}: {item.message}</p>
-                </div>
-              ))}
-              {notifications.length === 0 && <div className="empty-state">No notifications.</div>}
-            </section>
-          )}
           <Outlet />
         </main>
       </div>

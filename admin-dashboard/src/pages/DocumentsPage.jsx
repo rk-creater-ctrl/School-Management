@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { BadgeCheck, FileText, IdCard, Printer, Upload } from "lucide-react";
+import { BadgeCheck, FileText, IdCard, Printer, ScrollText, Upload } from "lucide-react";
 
 const defaultSubjects = [
   { subject: "", marks: "", max: "" },
@@ -23,6 +23,9 @@ function DocumentsPage() {
     rollNo: "",
     examName: "",
     academicYear: "",
+    certificateNo: "",
+    issueDate: new Date().toISOString().slice(0, 10),
+    conduct: "Good",
   });
   const [subjects, setSubjects] = useState(defaultSubjects);
 
@@ -65,7 +68,7 @@ function DocumentsPage() {
       <section className="module-hero no-print">
         <div>
           <span className="eyebrow">Documents</span>
-          <h2>Generate marksheets and ID cards.</h2>
+          <h2>Generate marksheets, ID cards, and certificates.</h2>
           <p>Create printable school records with student details, marks, photo, parent details, mobile number, DOB, and 10 digit student code.</p>
         </div>
         <div className="module-actions">
@@ -74,6 +77,9 @@ function DocumentsPage() {
           </button>
           <button className={activeTab === "idcard" ? "primary-button" : "secondary-button"} onClick={() => setActiveTab("idcard")}>
             <IdCard size={18} /> ID Card
+          </button>
+          <button className={activeTab === "character" ? "primary-button" : "secondary-button"} onClick={() => setActiveTab("character")}>
+            <ScrollText size={18} /> Character Certificate
           </button>
           <button className="secondary-button" onClick={printDocument}>
             <Printer size={18} /> Print
@@ -128,13 +134,24 @@ function DocumentsPage() {
               <input type="file" accept="image/*" onChange={handlePhoto} />
             </label>
           )}
+
+          {activeTab === "character" && (
+            <div className="form-grid">
+              <Field label="Certificate no." value={student.certificateNo} onChange={(value) => updateStudent("certificateNo", value.toUpperCase())} />
+              <Field label="Issue date" type="date" value={student.issueDate} onChange={(value) => updateStudent("issueDate", value)} />
+              <Field label="Conduct" value={student.conduct} onChange={(value) => updateStudent("conduct", value)} />
+              <Field label="Academic year" value={student.academicYear} onChange={(value) => updateStudent("academicYear", value)} />
+            </div>
+          )}
         </aside>
 
         <main className="document-preview">
           {activeTab === "marksheet" ? (
             <Marksheet student={student} subjects={subjects} totals={totals} />
-          ) : (
+          ) : activeTab === "idcard" ? (
             <IdCardPreview student={student} photo={idPhoto} />
+          ) : (
+            <CharacterCertificate student={student} />
           )}
         </main>
       </section>
@@ -213,6 +230,46 @@ function IdCardPreview({ student, photo }) {
           <span>Mobile: <strong>{student.mobile}</strong></span>
         </div>
       </div>
+    </article>
+  );
+}
+
+function CharacterCertificate({ student }) {
+  return (
+    <article className="marksheet-paper character-certificate print-area">
+      <header className="document-header">
+        <BadgeCheck size={34} />
+        <div>
+          <h2>{student.schoolName}</h2>
+          <p>Character Certificate</p>
+        </div>
+      </header>
+
+      <div className="document-meta">
+        <span>Certificate No: <strong>{student.certificateNo || "-"}</strong></span>
+        <span>Issue Date: <strong>{student.issueDate || "-"}</strong></span>
+        <span>Academic Year: <strong>{student.academicYear || "-"}</strong></span>
+        <span>Student Code: <strong>{student.studentCode || "-"}</strong></span>
+      </div>
+
+      <section className="certificate-body">
+        <p>
+          This is to certify that <strong>{student.name || "the student"}</strong>,
+          son/daughter of <strong>{student.fatherName || "-"}</strong>, was a student of
+          class <strong>{student.className || "-"}</strong> in this school.
+        </p>
+        <p>
+          As per the school records, the student's date of birth is
+          <strong> {student.dob || "-"}</strong>. The student's conduct and character
+          during the period of study was <strong>{student.conduct || "Good"}</strong>.
+        </p>
+        <p>We wish the student success in future studies and life.</p>
+      </section>
+
+      <footer className="certificate-signature">
+        <span>Date: <strong>{student.issueDate || "-"}</strong></span>
+        <strong>Principal / Authorized Signature</strong>
+      </footer>
     </article>
   );
 }

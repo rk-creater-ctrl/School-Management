@@ -1,6 +1,18 @@
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
 
+const paymentEntrySchema = new Schema(
+  {
+    amount: { type: Number, default: 0 },
+    paidDate: { type: Date },
+    paymentMode: { type: String, default: "Cash" },
+    receiptNo: { type: String },
+    note: { type: String },
+    collectedBy: { type: String },
+  },
+  { _id: true }
+);
+
 // Month entry for tuition
 const monthSchema = new Schema(
   {
@@ -8,10 +20,24 @@ const monthSchema = new Schema(
     amount: { type: Number, required: true },
     status: {
       type: String,
-      enum: ["Pending", "Paid"],
+      enum: ["Pending", "Partial", "Paid"],
       default: "Pending",
     },
     paidDate: { type: Date },
+    amountPaid: { type: Number, default: 0 },
+    concessionAmount: { type: Number, default: 0 },
+    paymentMode: { type: String, default: "Cash" },
+    receiptNo: { type: String },
+    paymentNote: { type: String },
+    collectedBy: { type: String },
+    payments: {
+      type: [paymentEntrySchema],
+      default: [],
+    },
+    lateFeeAmount: { type: Number, default: 10 },
+    lateFeeStartDay: { type: Number, default: 10 },
+    lateFeeDueAmount: { type: Number, default: 0 },
+    lateFeePaidAmount: { type: Number, default: 0 },
   },
   { _id: false }
 );
@@ -33,6 +59,8 @@ const itemSchema = new Schema(
 
     // For mode: MONTHLY (tuition)
     monthlyAmount: { type: Number },
+    lateFeeAmount: { type: Number, default: 10 },
+    lateFeeStartDay: { type: Number, default: 10 },
     months: {
       type: [monthSchema],
       default: [],
@@ -40,12 +68,25 @@ const itemSchema = new Schema(
 
     // For mode: ONE_TIME (exam, activity, etc.)
     amount: { type: Number },
+    applicableMonth: { type: String },
     status: {
       type: String,
-      enum: ["Pending", "Paid"],
+      enum: ["Pending", "Partial", "Paid"],
       default: "Pending",
     },
     paidDate: { type: Date },
+    amountPaid: { type: Number, default: 0 },
+    concessionAmount: { type: Number, default: 0 },
+    paymentMode: { type: String, default: "Cash" },
+    receiptNo: { type: String },
+    paymentNote: { type: String },
+    collectedBy: { type: String },
+    payments: {
+      type: [paymentEntrySchema],
+      default: [],
+    },
+    lateFeeDueAmount: { type: Number, default: 0 },
+    lateFeePaidAmount: { type: Number, default: 0 },
   },
   { _id: true }
 );

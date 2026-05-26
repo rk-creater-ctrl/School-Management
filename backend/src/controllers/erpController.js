@@ -3,6 +3,7 @@ const ModuleRecord = require('../models/ModuleRecord');
 const Notification = require('../models/Notification');
 const Student = require('../models/Student');
 const User = require('../models/User');
+const TeacherProfile = require('../models/TeacherProfile');
 const Fee = require('../models/Fee');
 const Attendance = require('../models/Attendance');
 const { writeActivity } = require('../utils/audit');
@@ -32,12 +33,93 @@ function canAccess(user, module) {
   return (modulePermissions[module] || []).includes(user.role);
 }
 
+function canWrite(user, module) {
+  if (!user) return false;
+  if (module === 'staffAttendance') return user.role === 'superadmin';
+  return canAccess(user, module);
+}
+
 function scopedQuery(user, extra = {}) {
   return extra;
 }
 
 function monthLabels() {
   return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+}
+
+function titleCase(value) {
+  const text = String(value || '').trim();
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : 'Active';
+}
+
+function summarizeTeacherWork(profile) {
+  const assignments = profile?.assignments || [];
+  if (assignments.length) {
+    return assignments
+      .slice(0, 3)
+      .map((item) => [item.className, item.subject].filter(Boolean).join(' - '))
+      .join(', ');
+  }
+
+  const subjects = profile?.subjects || [];
+  return subjects.length ? subjects.join(', ') : 'Teaching';
+}
+
+async function getTeacherStaffRecords() {
+  const teachers = await User.find({ role: 'teacher' })
+    .select('name username email phone status createdAt updatedAt')
+    .sort({ name: 1 })
+    .lean();
+
+  if (!teachers.length) return [];
+
+  const profiles = await TeacherProfile.find({ userId: { $in: teachers.map((teacher) => teacher._id) } }).lean();
+  const profileByUserId = new Map(profiles.map((profile) => [String(profile.userId), profile]));
+
+  return teachers.map((teacher) => {
+    const profile = profileByUserId.get(String(teacher._id));
+    return {
+      referenceNo: profile?.employeeCode || `TCHR-${String(teacher._id).slice(-6).toUpperCase()}`,
+      title: teacher.name || 'Teacher',
+      ownerName: teacher.name || 'Teacher',
+      groupName: profile?.department || 'Teaching Staff',
+      status: titleCase(teacher.status),
+      priority: 'medium',
+      payload: {
+        source: 'teacher-account',
+        action: 'Teacher login account',
+        payrollCategory: 'Skilled',
+        designation: profile?.designation || 'Teacher',
+        subject: summarizeTeacherWork(profile),
+        phone: profile?.alternatePhone || teacher.phone || '',
+        email: teacher.email || '',
+        username: teacher.username || '',
+      },
+      readOnly: true,
+      sourceId: teacher._id,
+      createdAt: teacher.createdAt,
+      updatedAt: profile?.updatedAt || teacher.updatedAt,
+    };
+  });
+}
+
+function addTeacherCountToModules(moduleCounts, teacherCount) {
+  const modules = moduleCounts.map((item) => ({
+    module: item._id,
+    count: item.count,
+    pending: item.pending,
+  }));
+
+  if (!teacherCount) return modules;
+
+  const staffModule = modules.find((item) => item.module === 'staff');
+  if (staffModule) {
+    staffModule.count += teacherCount;
+  } else {
+    modules.push({ module: 'staff', count: teacherCount, pending: 0 });
+  }
+
+  return modules;
 }
 
 exports.analytics = async (req, res) => {
@@ -97,11 +179,7 @@ exports.analytics = async (req, res) => {
       },
       activities,
       notifications,
-      modules: moduleCounts.map((item) => ({
-        module: item._id,
-        count: item.count,
-        pending: item.pending,
-      })),
+      modules: addTeacherCountToModules(moduleCounts, teachers),
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -141,13 +219,19 @@ exports.listRecords = async (req, res) => {
   try {
     const { module } = req.params;
     if (!canAccess(req.user, module)) return res.status(403).json({ error: 'Access denied' });
+    if (!canWrite(req.user, module)) return res.status(403).json({ error: 'Only superadmin can edit this module' });
 
     const query = {
       module,
       ...(req.query.status ? { status: req.query.status } : {}),
     };
 
-    const records = await ModuleRecord.find(query).sort({ createdAt: -1 }).limit(Number(req.query.limit) || 100);
+    const records = await ModuleRecord.find(query).sort({ createdAt: -1 }).limit(Number(req.query.limit) || 100).lean();
+    if (module === 'staff') {
+      const teacherRecords = await getTeacherStaffRecords();
+      return res.json([...teacherRecords, ...records]);
+    }
+
     res.json(records);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -178,6 +262,7 @@ exports.updateRecord = async (req, res) => {
   try {
     const { module, id } = req.params;
     if (!canAccess(req.user, module)) return res.status(403).json({ error: 'Access denied' });
+    if (!canWrite(req.user, module)) return res.status(403).json({ error: 'Only superadmin can edit this module' });
 
     const record = await ModuleRecord.findOneAndUpdate(
       { _id: id, module },
@@ -197,6 +282,7 @@ exports.deleteRecord = async (req, res) => {
   try {
     const { module, id } = req.params;
     if (!canAccess(req.user, module)) return res.status(403).json({ error: 'Access denied' });
+    if (!canWrite(req.user, module)) return res.status(403).json({ error: 'Only superadmin can edit this module' });
 
     const record = await ModuleRecord.findOneAndDelete({
       _id: id,

@@ -5,6 +5,7 @@ import { studentsAPI } from "../api";
 import { Link, useNavigate } from "react-router-dom";
 import { getStoredUser } from "../permissions";
 import { requireSuperadminPassword } from "../utils/superadminGuard";
+import { getCurrentAcademicYear } from "../utils/academicYear";
 
 function StudentsPage() {
   const [students, setStudents] = useState([]);
@@ -15,6 +16,7 @@ function StudentsPage() {
   const navigate = useNavigate();
   const currentUser = getStoredUser();
   const isSuperadmin = currentUser?.role === "superadmin";
+  const activeYear = getCurrentAcademicYear();
 
   useEffect(() => {
     loadStudents();
@@ -322,7 +324,7 @@ function StudentsPage() {
 
                           {isSuperadmin && (
                             <Link
-                              to={`/fees/${s._id}/2024-2025`}
+                              to={`/fees/${s._id}/${activeYear}`}
                               style={{
                                 textDecoration: "none",
                                 background:

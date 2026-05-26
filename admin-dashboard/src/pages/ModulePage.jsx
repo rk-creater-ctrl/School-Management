@@ -201,6 +201,7 @@ function ModulePage() {
   }
 
   function openEditRecord(record) {
+    if (record.readOnly) return;
     setEditingRecordId(record.localId);
     setForm({
       referenceNo: record.referenceNo,
@@ -253,6 +254,7 @@ function ModulePage() {
   }
 
   async function deleteRecord(record) {
+    if (record.readOnly) return;
     setRecords((current) => current.filter((item) => item.localId !== record.localId));
     if (!record.id) return;
     try {
@@ -285,6 +287,7 @@ function ModulePage() {
   }
 
   async function advanceRecord(record) {
+    if (record.readOnly) return;
     const nextStatus = record.status.toLowerCase().includes("approved") || record.status.toLowerCase().includes("active") ? "Reviewed" : "Approved";
     const nextRecord = { ...record, status: nextStatus, note: "Updated now", payload: { ...record.payload, action: "Updated now" } };
     setRecords((current) => current.map((item) => (item.localId === record.localId ? nextRecord : item)));
@@ -387,13 +390,19 @@ function ModulePage() {
                     <td>{record.note}</td>
                     <td>
                       <div className="table-action-group">
-                        <button className="ghost-button table-action" onClick={() => advanceRecord(record)}>Advance</button>
-                        <button className="icon-button table-icon-action" onClick={() => openEditRecord(record)} aria-label="Edit record" title="Edit">
-                          <Edit3 size={15} />
-                        </button>
-                        <button className="icon-button table-icon-action danger" onClick={() => deleteRecord(record)} aria-label="Delete record" title="Delete">
-                          <Trash2 size={15} />
-                        </button>
+                        {record.readOnly ? (
+                          <span className="fee-status active">Teacher account</span>
+                        ) : (
+                          <>
+                            <button className="ghost-button table-action" onClick={() => advanceRecord(record)}>Advance</button>
+                            <button className="icon-button table-icon-action" onClick={() => openEditRecord(record)} aria-label="Edit record" title="Edit">
+                              <Edit3 size={15} />
+                            </button>
+                            <button className="icon-button table-icon-action danger" onClick={() => deleteRecord(record)} aria-label="Delete record" title="Delete">
+                              <Trash2 size={15} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -505,7 +514,8 @@ function toTableRecord(record) {
     note: record.payload?.action || record.priority || "-",
     payload: record.payload || {},
     id: record._id,
-    localId: record._id || record.referenceNo,
+    localId: record._id || record.sourceId || record.referenceNo,
+    readOnly: Boolean(record.readOnly || record.payload?.source === "teacher-account"),
   };
 }
 

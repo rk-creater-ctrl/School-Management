@@ -1,5 +1,8 @@
 import { createElement, useState } from "react";
 import { Mail, Phone, Save, School, ShieldCheck, UserRound } from "lucide-react";
+import AcademicYearSelect from "../components/AcademicYearSelect";
+import { getCurrentAcademicYear, normalizeAcademicYear } from "../utils/academicYear";
+import { getSessionUser, updateActiveUser } from "../utils/session";
 
 const fallbackUser = {
   name: "",
@@ -7,18 +10,11 @@ const fallbackUser = {
   phone: "",
   role: "admin",
   campus: "School ERP",
-  academicYear: "2026-27",
+  academicYear: getCurrentAcademicYear(),
 };
 
 function readUser() {
-  try {
-    return {
-      ...fallbackUser,
-      ...JSON.parse(localStorage.getItem("erp_user") || sessionStorage.getItem("erp_user") || "{}"),
-    };
-  } catch {
-    return fallbackUser;
-  }
+  return { ...fallbackUser, ...getSessionUser({}) };
 }
 
 function ProfilePage() {
@@ -32,8 +28,12 @@ function ProfilePage() {
 
   function saveProfile(event) {
     event.preventDefault();
-    const storage = localStorage.getItem("erp_user") ? localStorage : sessionStorage;
-    storage.setItem("erp_user", JSON.stringify(profile));
+    const normalizedProfile = {
+      ...profile,
+      academicYear: normalizeAcademicYear(profile.academicYear),
+    };
+    updateActiveUser(normalizedProfile);
+    setProfile(normalizedProfile);
     setSaved(true);
   }
 
@@ -61,7 +61,7 @@ function ProfilePage() {
             <Field icon={Phone} label="Mobile" value={profile.phone || ""} onChange={(value) => updateProfile("phone", value.replace(/\D/g, "").slice(0, 10))} />
             <Field icon={ShieldCheck} label="Role" value={profile.role} onChange={(value) => updateProfile("role", value)} />
             <Field icon={School} label="School / Campus" value={profile.campus} onChange={(value) => updateProfile("campus", value)} />
-            <Field icon={School} label="Academic year" value={profile.academicYear} onChange={(value) => updateProfile("academicYear", value)} />
+            <AcademicYearSelect className="field" value={profile.academicYear} onChange={(value) => updateProfile("academicYear", value)} />
           </div>
           {saved && <p className="inline-success">Profile saved.</p>}
           <button className="primary-button" type="submit"><Save size={18} /> Save Profile</button>

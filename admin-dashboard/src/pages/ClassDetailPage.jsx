@@ -3,11 +3,15 @@
 import { useEffect, useState } from "react";
 import { homeworkAPI, classNoticesAPI } from "../api";
 import { useParams, Link } from "react-router-dom";
+import { canUseRole, getStoredUser } from "../permissions";
 
 function ClassDetailPage() {
   // Treat param as className, e.g. "6A"
   const { id } = useParams();
   const className = decodeURIComponent(id || "");
+  const currentUser = getStoredUser();
+  const canManageHomework = canUseRole(["superadmin"], currentUser);
+  const canManageNotices = canUseRole(["superadmin", "admin"], currentUser);
 
   const [date, setDate] = useState(() => {
     const today = new Date();
@@ -268,7 +272,7 @@ function ClassDetailPage() {
             fontSize: "14px",
           }}
         >
-          Manage daily homework and class notices for this class.
+          Review daily homework and notices for this class.
         </p>
       </header>
 
@@ -330,21 +334,23 @@ function ClassDetailPage() {
             >
               Homework
             </h2>
-            <button
-              type="button"
-              onClick={startCreateHw}
-              style={{
-                border: "none",
-                background: "#2563eb",
-                color: "white",
-                padding: "4px 10px",
-                borderRadius: "999px",
-                fontSize: "12px",
-                cursor: "pointer",
-              }}
-            >
-              + Add
-            </button>
+            {canManageHomework && (
+              <button
+                type="button"
+                onClick={startCreateHw}
+                style={{
+                  border: "none",
+                  background: "#2563eb",
+                  color: "white",
+                  padding: "4px 10px",
+                  borderRadius: "999px",
+                  fontSize: "12px",
+                  cursor: "pointer",
+                }}
+              >
+                + Add
+              </button>
+            )}
           </div>
 
           {errorHw && (
@@ -423,43 +429,45 @@ function ClassDetailPage() {
                             {h.homeworkText}
                           </div>
                         </div>
-                        <div
-                          style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: "4px",
-                          }}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => startEditHw(h)}
+                        {canManageHomework && (
+                          <div
                             style={{
-                              border: "none",
-                              background: "#e5e7eb",
-                              padding: "2px 8px",
-                              borderRadius: "999px",
-                              fontSize: "11px",
-                              cursor: "pointer",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "4px",
                             }}
                           >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleHwDelete(h._id)}
-                            style={{
-                              border: "none",
-                              background: "#fee2e2",
-                              color: "#b91c1c",
-                              padding: "2px 8px",
-                              borderRadius: "999px",
-                              fontSize: "11px",
-                              cursor: "pointer",
-                            }}
-                          >
-                            Delete
-                          </button>
-                        </div>
+                            <button
+                              type="button"
+                              onClick={() => startEditHw(h)}
+                              style={{
+                                border: "none",
+                                background: "#e5e7eb",
+                                padding: "2px 8px",
+                                borderRadius: "999px",
+                                fontSize: "11px",
+                                cursor: "pointer",
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleHwDelete(h._id)}
+                              style={{
+                                border: "none",
+                                background: "#fee2e2",
+                                color: "#b91c1c",
+                                padding: "2px 8px",
+                                borderRadius: "999px",
+                                fontSize: "11px",
+                                cursor: "pointer",
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </li>
                   ))}
@@ -467,7 +475,7 @@ function ClassDetailPage() {
               )}
 
               {/* form */}
-              {showHwForm && (
+              {canManageHomework && showHwForm && (
                 <form onSubmit={handleHwSubmit}>
                   <div
                     style={{
@@ -558,21 +566,23 @@ function ClassDetailPage() {
             >
               Notices
             </h2>
-            <button
-              type="button"
-              onClick={startCreateNotice}
-              style={{
-                border: "none",
-                background: "#2563eb",
-                color: "white",
-                padding: "4px 10px",
-                borderRadius: "999px",
-                fontSize: "12px",
-                cursor: "pointer",
-              }}
-            >
-              + Add
-            </button>
+            {canManageNotices && (
+              <button
+                type="button"
+                onClick={startCreateNotice}
+                style={{
+                  border: "none",
+                  background: "#2563eb",
+                  color: "white",
+                  padding: "4px 10px",
+                  borderRadius: "999px",
+                  fontSize: "12px",
+                  cursor: "pointer",
+                }}
+              >
+                + Add
+              </button>
+            )}
           </div>
 
           {errorNotices && (
@@ -660,50 +670,52 @@ function ClassDetailPage() {
                             {n.expiryDate?.slice(0, 10)}
                           </div>
                         </div>
-                        <div
-                          style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: "4px",
-                          }}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => startEditNotice(n)}
+                        {canManageNotices && (
+                          <div
                             style={{
-                              border: "none",
-                              background: "#e5e7eb",
-                              padding: "2px 8px",
-                              borderRadius: "999px",
-                              fontSize: "11px",
-                              cursor: "pointer",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "4px",
                             }}
                           >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleNoticeDelete(n._id)}
-                            style={{
-                              border: "none",
-                              background: "#fee2e2",
-                              color: "#b91c1c",
-                              padding: "2px 8px",
-                              borderRadius: "999px",
-                              fontSize: "11px",
-                              cursor: "pointer",
-                            }}
-                          >
-                            Delete
-                          </button>
-                        </div>
+                            <button
+                              type="button"
+                              onClick={() => startEditNotice(n)}
+                              style={{
+                                border: "none",
+                                background: "#e5e7eb",
+                                padding: "2px 8px",
+                                borderRadius: "999px",
+                                fontSize: "11px",
+                                cursor: "pointer",
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleNoticeDelete(n._id)}
+                              style={{
+                                border: "none",
+                                background: "#fee2e2",
+                                color: "#b91c1c",
+                                padding: "2px 8px",
+                                borderRadius: "999px",
+                                fontSize: "11px",
+                                cursor: "pointer",
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </li>
                   ))}
                 </ul>
               )}
 
-              {showNoticeForm && (
+              {canManageNotices && showNoticeForm && (
                 <form onSubmit={handleNoticeSubmit}>
                   <div
                     style={{

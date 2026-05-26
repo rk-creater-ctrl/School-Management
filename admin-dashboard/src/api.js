@@ -1,12 +1,13 @@
 // src/api.js
 import axios from "axios";
+import { getAuthToken } from "./utils/session";
 
 const api = axios.create({
   baseURL: "/api", // or "http://localhost:5000/api" if you don't use Vite proxy
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("erp_token") || sessionStorage.getItem("erp_token");
+  const token = getAuthToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -76,6 +77,57 @@ export const classNoticesAPI = {
   remove: (id) => api.delete(`/class-notices/${id}`),
 };
 
+export const teacherAPI = {
+  getProfile: () => api.get("/teachers/me"),
+  saveProfile: (data) => api.put("/teachers/me", data),
+  getStudents: (className) => api.get("/teachers/students", { params: { className } }),
+  getWorkRecords: (params) => api.get("/teachers/work-records", { params }),
+  saveWorkRecord: (data) => api.put("/teachers/work-records", data),
+  reviewWorkRecord: (id, data) => api.patch(`/teachers/work-records/${id}/review`, data),
+  getAnnouncements: () => api.get("/teachers/announcements"),
+  createAnnouncement: (data) => api.post("/teachers/announcements", data),
+  markAnnouncementRead: (id) => api.patch(`/teachers/announcements/${id}/read`),
+};
+
+export const staffPayrollAPI = {
+  getEmployees: (params) => api.get("/staff-payroll/employees", { params }),
+  getEmployee: (userId, params) => api.get(`/staff-payroll/employees/${userId}`, { params }),
+  getMine: (params) => api.get("/staff-payroll/me", { params }),
+  saveSettings: (userId, data) => api.put(`/staff-payroll/employees/${userId}/settings`, data),
+  markPayment: (userId, data) => api.patch(`/staff-payroll/employees/${userId}/payments`, data),
+};
+
+export const staffDirectoryAPI = {
+  getAll: () => api.get("/staff-directory"),
+  create: (data) => api.post("/staff-directory", data),
+  update: (id, data) => api.put(`/staff-directory/${id}`, data),
+  remove: (id, superadminPassword) => api.delete(`/staff-directory/${id}`, { data: { superadminPassword } }),
+};
+
+export const transportAPI = {
+  getVehicles: (params) => api.get("/transport/vehicles", { params }),
+  getVehicle: (id, params) => api.get(`/transport/vehicles/${id}`, { params }),
+  createVehicle: (data) => api.post("/transport/vehicles", data),
+  updateVehicle: (id, data) => api.put(`/transport/vehicles/${id}`, data),
+  removeVehicle: (id) => api.delete(`/transport/vehicles/${id}`),
+  getClasses: () => api.get("/transport/classes"),
+  getStudents: (params) => api.get("/transport/students", { params }),
+  assignStudent: (vehicleId, data) => api.post(`/transport/vehicles/${vehicleId}/students`, data),
+  removeStudent: (vehicleId, studentId, params) =>
+    api.delete(`/transport/vehicles/${vehicleId}/students/${studentId}`, { params }),
+  getFees: (params) => api.get("/transport/fees", { params }),
+  toggleMonth: (feeId, monthName, paidDate) =>
+    api.patch(`/transport/fees/${feeId}/months/${monthName}`, { paidDate }),
+};
+
+export const academicYearsAPI = {
+  getAll: () => api.get("/academic-years"),
+  save: (data) => api.post("/academic-years", data),
+  activate: (id) => api.patch(`/academic-years/${id}/activate`),
+  close: (id) => api.patch(`/academic-years/${id}/close`),
+  promote: (data) => api.post("/academic-years/promote", data),
+};
+
 export const studentsAPI = {
   getAll: () => api.get("/students"),
   getById: (id) => api.get(`/students/${id}`),
@@ -83,6 +135,13 @@ export const studentsAPI = {
   update: (id, data) => api.put(`/students/${id}`, data),
   remove: (id) => api.delete(`/students/${id}`),
   getClasses: () => api.get("/students/classes/distinct"),
+};
+
+export const websiteLeadsAPI = {
+  getAll: (params) => api.get("/website-leads", { params }),
+  getById: (id) => api.get(`/website-leads/${id}`),
+  update: (id, data) => api.patch(`/website-leads/${id}`, data),
+  remove: (id) => api.delete(`/website-leads/${id}`),
 };
 
 export const attendanceAPI = {
@@ -116,16 +175,23 @@ export const feesAPI = {
   // create tuition plan
   createTuition: (data) => api.post("/fees/create-tuition", data),
 
+  // late fee settings for tuition months
+  updateTuitionLateFee: (feeId, itemId, lateFeeAmount) =>
+    api.patch(`/fees/${feeId}/tuition-late-fee`, { itemId, lateFeeAmount }),
+
   // add exam/activity/etc.
   addItem: (data) => api.post("/fees/add-item", data),
 
   // toggle month (tuition) with optional paidDate
-  toggleMonth: (feeId, itemId, monthName, paidDate) =>
+  toggleMonth: (feeId, itemId, monthName, paidDate, paymentMode) =>
     api.patch(`/fees/${feeId}/toggle-month`, {
       itemId,
       monthName,
       paidDate,
+      paymentMode,
     }),
+
+  recordMonthPayment: (feeId, data) => api.patch(`/fees/${feeId}/month-payment`, data),
 
   // toggle one-time item with optional paidDate
   toggleItem: (feeId, itemId, paidDate) =>
@@ -133,6 +199,8 @@ export const feesAPI = {
       itemId,
       paidDate,
     }),
+
+  recordItemPayment: (feeId, data) => api.patch(`/fees/${feeId}/item-payment`, data),
 
   // delete/reset plan
   removePlan: (feeId) => api.delete(`/fees/${feeId}`),

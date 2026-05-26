@@ -1,5 +1,7 @@
 const express = require("express");
 const Homework = require("../models/Homework");
+const auth = require("../middleware/auth");
+const { authorize } = require("../middleware/auth");
 
 const router = express.Router();
 
@@ -37,9 +39,9 @@ router.get("/", async (req, res) => {
 });
 
 // POST /api/homework
-router.post("/", async (req, res) => {
+router.post("/", auth, authorize("superadmin"), async (req, res) => {
   try {
-    const data = req.body;
+    const data = { ...req.body };
 
     if (!data.className || !data.date || !data.subject || !data.homeworkText) {
       return res.status(400).json({
@@ -59,21 +61,22 @@ router.post("/", async (req, res) => {
 });
 
 // PUT /api/homework/:id
-router.put("/:id", async (req, res) => {
+router.put("/:id", auth, authorize("superadmin"), async (req, res) => {
   try {
     const data = { ...req.body };
     if (data.date) {
       data.date = normalizeDate(data.date);
     }
 
+    const existing = await Homework.findById(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ error: "Homework not found" });
+    }
+
     const hw = await Homework.findByIdAndUpdate(req.params.id, data, {
       new: true,
       runValidators: true,
     });
-
-    if (!hw) {
-      return res.status(404).json({ error: "Homework not found" });
-    }
 
     res.json(hw);
   } catch (err) {
@@ -83,12 +86,13 @@ router.put("/:id", async (req, res) => {
 });
 
 // DELETE /api/homework/:id
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", auth, authorize("superadmin"), async (req, res) => {
   try {
-    const hw = await Homework.findByIdAndDelete(req.params.id);
+    const hw = await Homework.findById(req.params.id);
     if (!hw) {
       return res.status(404).json({ error: "Homework not found" });
     }
+    await hw.deleteOne();
     res.json({ success: true });
   } catch (err) {
     console.error("Error deleting homework", err);

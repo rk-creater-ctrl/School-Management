@@ -8,7 +8,7 @@ const schoolSchema = new mongoose.Schema(
     address: String,
     contactEmail: String,
     contactPhone: String,
-    academicYear: { type: String, default: '2026-27' },
+    academicYear: { type: String, default: '2026-2027' },
     locale: { type: String, default: 'en-IN' },
     timezone: { type: String, default: 'Asia/Kolkata' },
     settings: {

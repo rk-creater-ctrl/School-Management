@@ -1,5 +1,7 @@
 const express = require("express");
 const ClassNotice = require("../models/ClassNotice");
+const auth = require("../middleware/auth");
+const { authorize } = require("../middleware/auth");
 
 const router = express.Router();
 
@@ -34,9 +36,9 @@ router.get("/", async (req, res) => {
 });
 
 // POST /api/class-notices
-router.post("/", async (req, res) => {
+router.post("/", auth, authorize("superadmin", "admin", "teacher"), async (req, res) => {
   try {
-    const data = req.body;
+    const data = { ...req.body };
 
     if (
       !data.className ||
@@ -48,6 +50,10 @@ router.post("/", async (req, res) => {
       return res.status(400).json({
         error: "className, title, message, startDate, expiryDate are required",
       });
+    }
+
+    if (req.user.role === "teacher" && data.className === GLOBAL_CLASS_NAME) {
+      return res.status(403).json({ error: "Teachers can publish class notices only" });
     }
 
     data.startDate = new Date(data.startDate);
@@ -65,7 +71,7 @@ router.post("/", async (req, res) => {
 });
 
 // PUT /api/class-notices/:id
-router.put("/:id", async (req, res) => {
+router.put("/:id", auth, authorize("superadmin", "admin"), async (req, res) => {
   try {
     const data = { ...req.body };
 
@@ -93,7 +99,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // DELETE /api/class-notices/:id
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", auth, authorize("superadmin", "admin"), async (req, res) => {
   try {
     const notice = await ClassNotice.findByIdAndDelete(req.params.id);
     if (!notice) {

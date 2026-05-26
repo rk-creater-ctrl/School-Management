@@ -8,7 +8,7 @@ const roleOptions = ["superadmin", "admin", "teacher", "student", "parent", "acc
 function UserManagementPage() {
   const currentUser = getStoredUser();
   const isSuperadmin = currentUser?.role === "superadmin";
-  const allowedRoles = isSuperadmin ? roleOptions : ["student"];
+  const allowedRoles = isSuperadmin ? roleOptions : ["teacher", "student"];
   const [users, setUsers] = useState([]);
   const [status, setStatus] = useState("");
   const [editingUser, setEditingUser] = useState(null);
@@ -81,7 +81,7 @@ function UserManagementPage() {
     try {
       const payload = {
         ...form,
-        role: isSuperadmin ? form.role : "student",
+        role: form.role,
         username: form.username.toLowerCase().replace(/\s/g, ""),
       };
       await authAPI.createUser(payload);
@@ -139,7 +139,7 @@ function UserManagementPage() {
       <section className="module-hero">
         <div>
           <span className="eyebrow">Users</span>
-          <h2>{isSuperadmin ? "User & Admin Control" : "Student Accounts"}</h2>
+          <h2>{isSuperadmin ? "User & Admin Control" : "Teacher & Student Accounts"}</h2>
         </div>
       </section>
 

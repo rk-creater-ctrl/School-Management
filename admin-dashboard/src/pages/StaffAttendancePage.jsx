@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { CalendarCheck, Download, Search, UserCheck } from "lucide-react";
 import { erpAPI } from "../api";
+import { getStoredUser } from "../permissions";
 
 const statusOptions = ["Present", "Absent", "HalfDay", "Leave"];
 
 function StaffAttendancePage() {
+  const isSuperadmin = getStoredUser()?.role === "superadmin";
   const [records, setRecords] = useState([]);
   const [query, setQuery] = useState("");
   const [message, setMessage] = useState("Loading staff attendance...");
@@ -109,7 +111,7 @@ function StaffAttendancePage() {
       <section className="module-hero">
         <div>
           <span className="eyebrow">Staff Attendance</span>
-          <h2>Staff attendance register.</h2>
+          <h2>{isSuperadmin ? "Staff attendance register." : "Staff attendance view."}</h2>
         </div>
         <div className="module-actions">
           <button className="secondary-button" onClick={exportCsv}><Download size={18} /> Export CSV</button>
@@ -129,32 +131,45 @@ function StaffAttendancePage() {
       </section>
 
       <section className="workspace-grid">
-        <form className="chart-card" onSubmit={markAttendance}>
-          <div className="section-heading">
-            <div>
-              <span className="eyebrow">Mark</span>
-              <h3>Attendance</h3>
+        {isSuperadmin ? (
+          <form className="chart-card" onSubmit={markAttendance}>
+            <div className="section-heading">
+              <div>
+                <span className="eyebrow">Mark</span>
+                <h3>Attendance</h3>
+              </div>
+              <UserCheck size={20} />
             </div>
-            <UserCheck size={20} />
-          </div>
-          <div className="form-grid">
-            <Field label="Staff code" value={form.staffCode} onChange={(value) => updateForm("staffCode", value.toUpperCase())} />
-            <Field label="Staff name" value={form.staffName} onChange={(value) => updateForm("staffName", value)} />
-            <Field label="Department" value={form.department} onChange={(value) => updateForm("department", value)} />
-            <label className="field">
-              <span>Status</span>
-              <select value={form.status} onChange={(event) => updateForm("status", event.target.value)}>
-                {statusOptions.map((status) => <option key={status}>{status}</option>)}
-              </select>
-            </label>
-            <label className="field">
-              <span>Date</span>
-              <input type="date" value={form.date} onChange={(event) => updateForm("date", event.target.value)} />
-            </label>
-            <Field label="Note" value={form.note} onChange={(value) => updateForm("note", value)} />
-          </div>
-          <button className="primary-button" type="submit">Mark Attendance</button>
-        </form>
+            <div className="form-grid">
+              <Field label="Staff code" value={form.staffCode} onChange={(value) => updateForm("staffCode", value.toUpperCase())} />
+              <Field label="Staff name" value={form.staffName} onChange={(value) => updateForm("staffName", value)} />
+              <Field label="Department" value={form.department} onChange={(value) => updateForm("department", value)} />
+              <label className="field">
+                <span>Status</span>
+                <select value={form.status} onChange={(event) => updateForm("status", event.target.value)}>
+                  {statusOptions.map((status) => <option key={status}>{status}</option>)}
+                </select>
+              </label>
+              <label className="field">
+                <span>Date</span>
+                <input type="date" value={form.date} onChange={(event) => updateForm("date", event.target.value)} />
+              </label>
+              <Field label="Note" value={form.note} onChange={(value) => updateForm("note", value)} />
+            </div>
+            <button className="primary-button" type="submit">Mark Attendance</button>
+          </form>
+        ) : (
+          <article className="chart-card">
+            <div className="section-heading">
+              <div>
+                <span className="eyebrow">Read Only</span>
+                <h3>Attendance Register</h3>
+              </div>
+              <UserCheck size={20} />
+            </div>
+            <div className="empty-state">Admin can view and export staff attendance. Only superadmin can mark or edit records.</div>
+          </article>
+        )}
 
         <article className="chart-card wide">
           <div className="table-toolbar">

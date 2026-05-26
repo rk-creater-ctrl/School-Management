@@ -18,13 +18,27 @@ function StudentFormPage() {
 
     className: "",
     classId: "",
+    section: "",
+    rollNo: "",
+    house: "",
+    status: "active",
 
     fatherName: "",
     motherName: "",
+    guardianName: "",
+    guardianRelation: "",
+    guardianPhone: "",
+    guardianEmail: "",
+    guardianOccupation: "",
 
     dob: "",
     gender: "",
     category: "",
+    bloodGroup: "",
+    allergies: "",
+    chronicConditions: "",
+    emergencyContact: "",
+    doctorName: "",
 
     mobileNo: "",
     aadharNo: "",
@@ -65,13 +79,27 @@ function StudentFormPage() {
 
         className: s.className || "",
         classId: s.classId || "",
+        section: s.section || "",
+        rollNo: s.rollNo || "",
+        house: s.house || "",
+        status: s.status || "active",
 
         fatherName: s.fatherName || "",
         motherName: s.motherName || "",
+        guardianName: s.guardian?.name || "",
+        guardianRelation: s.guardian?.relation || "",
+        guardianPhone: s.guardian?.phone || "",
+        guardianEmail: s.guardian?.email || "",
+        guardianOccupation: s.guardian?.occupation || "",
 
         dob: s.dob ? s.dob.slice(0, 10) : "",
         gender: s.gender || "",
         category: s.category || "",
+        bloodGroup: s.medical?.bloodGroup || "",
+        allergies: s.medical?.allergies || "",
+        chronicConditions: s.medical?.chronicConditions || "",
+        emergencyContact: s.medical?.emergencyContact || "",
+        doctorName: s.medical?.doctorName || "",
 
         mobileNo: s.mobileNo || "",
         aadharNo: s.aadharNo || "",
@@ -118,6 +146,20 @@ function StudentFormPage() {
         dob: form.dob ? new Date(form.dob) : undefined,
         classId: form.classId ? form.classId : undefined,
         email: form.email || undefined,
+        guardian: {
+          name: form.guardianName,
+          relation: form.guardianRelation,
+          phone: form.guardianPhone,
+          email: form.guardianEmail,
+          occupation: form.guardianOccupation,
+        },
+        medical: {
+          bloodGroup: form.bloodGroup,
+          allergies: form.allergies,
+          chronicConditions: form.chronicConditions,
+          emergencyContact: form.emergencyContact,
+          doctorName: form.doctorName,
+        },
       };
 
       if (isEdit) {
@@ -294,6 +336,27 @@ function StudentFormPage() {
             />
           </Field>
 
+          <Field label="Section" name="section">
+            <input type="text" name="section" value={form.section} onChange={handleChange} style={inputStyle} />
+          </Field>
+
+          <Field label="Roll no." name="rollNo">
+            <input type="text" name="rollNo" value={form.rollNo} onChange={handleChange} style={inputStyle} />
+          </Field>
+
+          <Field label="House" name="house">
+            <input type="text" name="house" value={form.house} onChange={handleChange} style={inputStyle} />
+          </Field>
+
+          <Field label="Status" name="status">
+            <select name="status" value={form.status} onChange={handleChange} style={inputStyle}>
+              <option value="active">Active</option>
+              <option value="promoted">Promoted</option>
+              <option value="transferred">Transferred</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </Field>
+
           {/* Family */}
           <Field label="Father name" name="fatherName">
             <input
@@ -303,6 +366,26 @@ function StudentFormPage() {
               onChange={handleChange}
               style={inputStyle}
             />
+          </Field>
+
+          <Field label="Guardian name" name="guardianName">
+            <input type="text" name="guardianName" value={form.guardianName} onChange={handleChange} style={inputStyle} />
+          </Field>
+
+          <Field label="Guardian relation" name="guardianRelation">
+            <input type="text" name="guardianRelation" value={form.guardianRelation} onChange={handleChange} style={inputStyle} />
+          </Field>
+
+          <Field label="Guardian phone" name="guardianPhone">
+            <input type="tel" name="guardianPhone" value={form.guardianPhone} onChange={handleChange} style={inputStyle} />
+          </Field>
+
+          <Field label="Guardian email" name="guardianEmail">
+            <input type="email" name="guardianEmail" value={form.guardianEmail} onChange={handleChange} style={inputStyle} />
+          </Field>
+
+          <Field label="Guardian occupation" name="guardianOccupation">
+            <input type="text" name="guardianOccupation" value={form.guardianOccupation} onChange={handleChange} style={inputStyle} />
           </Field>
 
           <Field label="Mother name" name="motherName">
@@ -349,6 +432,26 @@ function StudentFormPage() {
               style={inputStyle}
               placeholder="e.g. General, OBC, SC, ST"
             />
+          </Field>
+
+          <Field label="Blood group" name="bloodGroup">
+            <input type="text" name="bloodGroup" value={form.bloodGroup} onChange={handleChange} style={inputStyle} />
+          </Field>
+
+          <Field label="Allergies" name="allergies">
+            <input type="text" name="allergies" value={form.allergies} onChange={handleChange} style={inputStyle} />
+          </Field>
+
+          <Field label="Chronic conditions" name="chronicConditions">
+            <input type="text" name="chronicConditions" value={form.chronicConditions} onChange={handleChange} style={inputStyle} />
+          </Field>
+
+          <Field label="Emergency contact" name="emergencyContact">
+            <input type="tel" name="emergencyContact" value={form.emergencyContact} onChange={handleChange} style={inputStyle} />
+          </Field>
+
+          <Field label="Doctor name" name="doctorName">
+            <input type="text" name="doctorName" value={form.doctorName} onChange={handleChange} style={inputStyle} />
           </Field>
 
           {/* Contact / IDs */}

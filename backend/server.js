@@ -13,20 +13,43 @@ const attendanceRoutes = require("./src/routes/attendance");
 const classesRoutes = require("./src/routes/classes");
 const homeworkRoutes = require("./src/routes/homework");
 const classNoticesRoutes = require("./src/routes/classNotices");
+const teacherRoutes = require("./src/routes/teachers");
+const staffPayrollRoutes = require("./src/routes/staffPayroll");
+const staffDirectoryRoutes = require("./src/routes/staffDirectory");
+const transportRoutes = require("./src/routes/transport");
+const academicYearRoutes = require("./src/routes/academicYears");
 const authRoutes = require("./src/routes/auth");
 const studentsRoutes = require("./src/routes/students");
 const erpRoutes = require("./src/routes/erp");
 const systemRoutes = require("./src/routes/system");
 const schoolsRoutes = require("./src/routes/schools");
 const uploadRoutes = require("./src/routes/uploads");
+const websiteLeadsRoutes = require("./src/routes/websiteLeads");
 
 
 // ---------------------
 // Middleware
 // ---------------------
 app.use(helmet());
+const defaultCorsOrigins = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:4173',
+  'http://127.0.0.1:4173',
+];
+
+const corsOrigins = (process.env.CORS_ORIGINS || process.env.FRONTEND_URL || defaultCorsOrigins.join(','))
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin(origin, callback) {
+    if (!origin || corsOrigins.includes(origin)) return callback(null, true);
+    return callback(null, false);
+  },
   credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
@@ -37,12 +60,18 @@ app.use('/api/erp', erpRoutes);
 app.use('/api/system', systemRoutes);
 app.use('/api/schools', schoolsRoutes);
 app.use('/api/uploads', uploadRoutes);
+app.use('/api/website-leads', websiteLeadsRoutes);
 app.use('/api/students', studentsRoutes);
 app.use("/api/fees", feesRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/classes", classesRoutes);
 app.use("/api/homework", homeworkRoutes);
 app.use("/api/class-notices", classNoticesRoutes);
+app.use("/api/teachers", teacherRoutes);
+app.use("/api/staff-payroll", staffPayrollRoutes);
+app.use("/api/staff-directory", staffDirectoryRoutes);
+app.use("/api/transport", transportRoutes);
+app.use("/api/academic-years", academicYearRoutes);
 
 // ---------------------
 // Health + Root routes

@@ -1,63 +1,28 @@
 import { createElement, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ArrowUpRight,
   Bell,
   Bus,
-  CalendarCheck,
   CheckCircle2,
   CircleDollarSign,
-  ClipboardList,
-  FileBadge,
-  FileText,
   GraduationCap,
-  History,
-  Library,
+  Globe2,
   Package,
   ReceiptText,
-  Settings,
-  ShieldCheck,
   TrendingUp,
   Users,
-  UserCheck,
 } from "lucide-react";
 import { erpAPI, studentsAPI } from "../api";
 import { canUseRole, getStoredUser } from "../permissions";
 
-const moduleDefinitions = [
-  { name: "Admissions", key: "admissions", path: "/modules/admissions", icon: ClipboardList, action: "New Enquiry", roles: ["superadmin", "staff"] },
-  { name: "Fees", key: "fees", path: "/fees", icon: CircleDollarSign, action: "Collect Fee", roles: ["superadmin", "accountant", "parent"] },
-  { name: "Documents", key: "documents", path: "/documents", icon: FileBadge, action: "Generate", roles: ["superadmin", "teacher", "staff"] },
-  { name: "Exams", key: "exams", path: "/modules/exams", icon: ShieldCheck, action: "Marks", roles: ["superadmin", "teacher", "student", "parent"] },
-  { name: "Payroll", key: "staff", path: "/modules/staff", icon: Users, action: "Payroll", roles: ["superadmin", "accountant"] },
-  { name: "Inventory", key: "inventory", path: "/modules/inventory", icon: Package, action: "Checkout", roles: ["superadmin", "staff"] },
-  { name: "Transport", key: "transport", path: "/modules/transport", icon: Bus, action: "Routes", roles: ["superadmin", "parent", "staff"] },
-  { name: "Library", key: "library", path: "/modules/library", icon: Library, action: "Issue", roles: ["superadmin", "librarian", "student"] },
-];
-
 const commandActions = [
-  { label: "Attendance", path: "/attendance", icon: CalendarCheck, roles: ["superadmin", "admin", "teacher", "student", "parent"] },
-  { label: "Staff Attendance", path: "/staff-attendance", icon: UserCheck, roles: ["superadmin", "admin"] },
-  { label: "Homework", path: "/classes", icon: FileText, roles: ["superadmin", "admin", "teacher"] },
-  { label: "Notice", path: "/notices", icon: Bell, roles: ["superadmin", "admin", "teacher", "staff"] },
-  { label: "Student Accounts", path: "/users", icon: Users, roles: ["superadmin", "admin"] },
-  { label: "Admission Enquiry", path: "/modules/admissions", icon: ClipboardList, roles: ["superadmin", "staff"] },
-  { label: "Fee Collection", path: "/fees", icon: CircleDollarSign, roles: ["superadmin", "accountant", "parent"] },
+  { label: "Staff", path: "/staff", icon: Users, roles: ["superadmin", "admin", "accountant"] },
+  { label: "Student", path: "/students", icon: GraduationCap, roles: ["superadmin", "teacher"] },
+  { label: "Website Leads", path: "/website-leads", icon: Globe2, roles: ["superadmin", "admin", "staff"] },
   { label: "Collections", path: "/fees/collections", icon: ReceiptText, roles: ["superadmin", "accountant"] },
-  { label: "Marksheet", path: "/documents", icon: FileText, roles: ["superadmin", "teacher", "staff"] },
-  { label: "ID Card", path: "/documents", icon: FileBadge, roles: ["superadmin", "teacher", "staff"] },
-  { label: "Inventory Due", path: "/modules/inventory", icon: Package, roles: ["superadmin", "staff"] },
+  { label: "Transport", path: "/modules/transport", icon: Bus, roles: ["superadmin", "admin", "accountant", "staff"] },
+  { label: "Inventory", path: "/modules/inventory", icon: Package, roles: ["superadmin", "staff"] },
   { label: "Notifications", path: "/notifications", icon: Bell, roles: ["superadmin", "admin", "teacher", "student", "parent", "accountant", "librarian", "staff"] },
-  { label: "School Settings", path: "/school-settings", icon: Settings, roles: ["superadmin"] },
-  { label: "Audit Log", path: "/audit-log", icon: History, roles: ["superadmin"] },
-];
-
-const dueControls = [
-  { label: "Bus Due", path: "/modules/inventory", icon: Bus, roles: ["superadmin", "staff"] },
-  { label: "Lab Due", path: "/modules/inventory", icon: ShieldCheck, roles: ["superadmin", "staff"] },
-  { label: "Fees Due", path: "/fees", icon: CircleDollarSign, roles: ["superadmin", "accountant"] },
-  { label: "ID Card Due", path: "/documents", icon: FileBadge, roles: ["superadmin", "staff"] },
-  { label: "TC Due", path: "/modules/admissions", icon: FileText, roles: ["superadmin", "staff"] },
 ];
 
 function DashboardPage() {
@@ -95,17 +60,7 @@ function DashboardPage() {
   const campusHealth = attendanceSeries.length
     ? Math.round(attendanceSeries.reduce((sum, value) => sum + value, 0) / attendanceSeries.length)
     : 0;
-  const moduleCounts = analytics?.modules || [];
   const activities = analytics?.activities || [];
-
-  const modules = moduleDefinitions.filter((module) => canUseRole(module.roles, currentUser)).map((module) => {
-    const stats = moduleCounts.find((item) => item.module === module.key);
-    return {
-      ...module,
-      count: stats?.count || 0,
-      pending: stats?.pending || 0,
-    };
-  });
 
   const statCards = [
     { label: "Students", value: studentsCount.toLocaleString(), delta: "Active", icon: GraduationCap, tone: "blue" },
@@ -116,7 +71,6 @@ function DashboardPage() {
       : []),
   ];
   const visibleCommands = commandActions.filter((item) => canUseRole(item.roles, currentUser));
-  const visibleDueControls = dueControls.filter((item) => canUseRole(item.roles, currentUser));
 
   function exportAttendanceReport() {
     const labels = analytics?.charts?.attendance?.map((item) => item.label) || [];
@@ -154,31 +108,6 @@ function DashboardPage() {
         ))}
       </section>
 
-      <section className="module-board wide">
-        <div className="section-heading">
-          <div>
-            <span className="eyebrow">Operations</span>
-            <h3>Module Actions</h3>
-          </div>
-        </div>
-        <div className="operation-grid">
-          {modules.map((module) => (
-            <button className="operation-card" key={module.name} type="button" onClick={() => navigate(module.path)}>
-              <span className="operation-icon">{createElement(module.icon, { size: 20 })}</span>
-              <span className="operation-main">
-                <strong>{module.name}</strong>
-                <small>{module.action}</small>
-              </span>
-              <span className="operation-meta">
-                <b>{module.count}</b>
-                <small>{module.pending} pending</small>
-              </span>
-              <ArrowUpRight size={16} />
-            </button>
-          ))}
-        </div>
-      </section>
-
       <section className="chart-card wide">
         <div className="section-heading">
           <div>
@@ -201,24 +130,6 @@ function DashboardPage() {
           {revenueSeries.some(Boolean) ? <BarChart data={revenueSeries} /> : <EmptyState text="No fee records." />}
         </section>
       )}
-
-      <section className="chart-card">
-        <div className="section-heading">
-          <div>
-            <span className="eyebrow">Due Desk</span>
-            <h3>Controls</h3>
-          </div>
-        </div>
-        <div className="due-grid">
-          {visibleDueControls.map((item) => (
-            <button className="due-option" key={item.label} type="button" onClick={() => navigate(item.path)}>
-              {createElement(item.icon, { size: 18 })}
-              <span>{item.label}</span>
-            </button>
-          ))}
-          {visibleDueControls.length === 0 && <div className="empty-state">No due controls for this role.</div>}
-        </div>
-      </section>
 
       <section className="activity-panel">
         <div className="section-heading">

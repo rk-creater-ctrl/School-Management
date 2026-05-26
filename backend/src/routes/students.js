@@ -18,6 +18,18 @@ router.get("/", async (req, res) => {
   }
 });
 
+// GET /api/students/classes/distinct - list distinct className values
+router.get("/classes/distinct", async (req, res) => {
+  try {
+    const classes = await Student.distinct("className");
+    classes.sort();
+    res.json(classes);
+  } catch (err) {
+    console.error("Error fetching distinct classes", err);
+    res.status(500).json({ error: "Failed to fetch classes" });
+  }
+});
+
 // GET /api/students/:id - get single student
 router.get("/:id", async (req, res) => {
   try {
@@ -118,18 +130,6 @@ router.delete("/:id", async (req, res) => {
   } catch (err) {
     console.error("Error deleting student", err);
     res.status(500).json({ error: "Failed to delete student" });
-  }
-});
-
-// GET /api/students/classes/distinct - list distinct className values
-router.get("/classes/distinct", async (req, res) => {
-  try {
-    const classes = await Student.distinct("className");
-    classes.sort();
-    res.json(classes);
-  } catch (err) {
-    console.error("Error fetching distinct classes", err);
-    res.status(500).json({ error: "Failed to fetch classes" });
   }
 });
 

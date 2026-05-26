@@ -1,14 +1,32 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
-import { feesAPI, studentsAPI } from "../api";
+import { erpAPI, feesAPI, studentsAPI } from "../api";
 import { extractFeeLedgerRows, formatCurrency } from "../utils/feeReports";
 import { requireSuperadminPassword } from "../utils/superadminGuard";
 import { getStoredUser } from "../permissions";
+import { printReceiptOnly } from "../utils/receiptPrint";
 
 const paymentModes = [
   { value: "monthly", label: "Monthly" },
   { value: "quarterly", label: "Quarterly" },
   { value: "yearly", label: "Yearly" },
+];
+
+const paymentMethodOptions = ["Cash", "Online", "UPI", "Card", "Bank Transfer", "Cheque", "Other"];
+
+const feeMonths = [
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+  "January",
+  "February",
+  "March",
 ];
 
 const quarterGroups = [
@@ -30,17 +48,21 @@ function FeeDetailPage() {
 
   // For creating tuition plan
   const [monthlyAmount, setMonthlyAmount] = useState("");
+  const [lateFeeAmount, setLateFeeAmount] = useState("10");
+  const [lateFeeSetting, setLateFeeSetting] = useState("");
 
   // For adding other fees
   const [otherLabel, setOtherLabel] = useState("");
   const [otherType, setOtherType] = useState("EXAM");
   const [otherAmount, setOtherAmount] = useState("");
+  const [otherMonth, setOtherMonth] = useState("");
 
   // Local state for date picker popups
   const [activeMonthPick, setActiveMonthPick] = useState(null); // { itemId, monthName }
   const [activeItemPick, setActiveItemPick] = useState(null); // itemId
   const [activeGroupPick, setActiveGroupPick] = useState(null);
   const [selectedDate, setSelectedDate] = useState(""); // YYYY-MM-DD
+  const [paymentDraft, setPaymentDraft] = useState(createPaymentDraft());
   const [selectedReceipt, setSelectedReceipt] = useState(null);
   const [paymentMode, setPaymentMode] = useState(() => {
     const mode = searchParams.get("mode");
@@ -62,8 +84,13 @@ function FeeDetailPage() {
 
       const s =
         (studentRes.data || []).find((x) => x._id === studentId) || null;
+      const nextPlan = planRes?.data || null;
+      const nextTuitionItem =
+        nextPlan?.items?.find((i) => i.type === "TUITION" && i.mode === "MONTHLY") ||
+        null;
       setStudent(s);
-      setPlan(planRes?.data || null);
+      setPlan(nextPlan);
+      setLateFeeSetting(nextTuitionItem?.lateFeeAmount ? String(nextTuitionItem.lateFeeAmount) : "10");
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.error || "Failed to load fee detail");
@@ -78,11 +105,20 @@ function FeeDetailPage() {
     loadData();
   }, [loadData]);
 
-  const tuitionItem =
-    plan?.items?.find((i) => i.type === "TUITION" && i.mode === "MONTHLY") ||
-    null;
-  const otherItems = plan?.items?.filter((i) => i.mode === "ONE_TIME") || [];
+  const tuitionItem = useMemo(
+    () => plan?.items?.find((i) => i.type === "TUITION" && i.mode === "MONTHLY") || null,
+    [plan]
+  );
+  const otherItems = useMemo(
+    () => plan?.items?.filter((i) => i.mode === "ONE_TIME") || [],
+    [plan]
+  );
   const ledgerRows = useMemo(() => extractFeeLedgerRows(plan), [plan]);
+  const lateFeeTotal = useMemo(() => getLateFeeTotal(tuitionItem, otherItems), [tuitionItem, otherItems]);
+  const modeDueSummary = useMemo(
+    () => getPaymentModeDueSummary(tuitionItem, otherItems, paymentMode, year),
+    [tuitionItem, otherItems, paymentMode, year]
+  );
 
   async function handleCreateTuition(e) {
     e.preventDefault();
@@ -97,8 +133,10 @@ function FeeDetailPage() {
         studentId,
         academicYear: year,
         monthlyAmount: Number(monthlyAmount),
+        lateFeeAmount: Number(lateFeeAmount || 10),
       });
       setMonthlyAmount("");
+      setLateFeeAmount("10");
       await loadData();
     } catch (err) {
       console.error(err);
@@ -110,8 +148,8 @@ function FeeDetailPage() {
     e.preventDefault();
     const allowed = await requireSuperadminPassword("add fee item");
     if (!allowed) return;
-    if (!otherLabel || !otherAmount) {
-      alert("Label and amount are required");
+    if (!otherLabel || !otherAmount || (otherType === "EXAM" && !otherMonth)) {
+      alert(otherType === "EXAM" ? "Fee name, amount, and exam month are required" : "Label and amount are required");
       return;
     }
     try {
@@ -121,14 +159,31 @@ function FeeDetailPage() {
         label: otherLabel,
         type: otherType,
         amount: Number(otherAmount),
+        applicableMonth: otherType === "EXAM" ? otherMonth : "",
       });
       setOtherLabel("");
       setOtherType("EXAM");
       setOtherAmount("");
+      setOtherMonth("");
       await loadData();
     } catch (err) {
       console.error(err);
       alert(err.response?.data?.error || "Failed to add fee item");
+    }
+  }
+
+  async function handleLateFeeSetting(e) {
+    e.preventDefault();
+    if (!plan || !tuitionItem) return;
+    const allowed = await requireSuperadminPassword("update late fee");
+    if (!allowed) return;
+
+    try {
+      await feesAPI.updateTuitionLateFee(plan._id, tuitionItem._id, Number(lateFeeSetting || 10));
+      await loadData();
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.error || "Failed to update late fee");
     }
   }
 
@@ -184,7 +239,8 @@ function FeeDetailPage() {
     // Open date picker UI under this button
     setActiveItemPick(null);
     setActiveMonthPick({ itemId, monthName });
-    setSelectedDate("");
+    const month = tuitionItem?.months?.find((item) => item.name === monthName);
+    setPaymentDraft(createPaymentDraft(getEntryBalanceAmount(month)));
   }
 
   async function handleToggleItem(itemId, currentStatus) {
@@ -199,7 +255,8 @@ function FeeDetailPage() {
     // Open date picker for one-time item
     setActiveMonthPick(null);
     setActiveItemPick(itemId);
-    setSelectedDate("");
+    const item = otherItems.find((entry) => entry._id === itemId);
+    setPaymentDraft(createPaymentDraft(getEntryBalanceAmount(item)));
   }
 
   async function confirmMonthDate() {
@@ -207,18 +264,35 @@ function FeeDetailPage() {
     const allowed = await requireSuperadminPassword("record fee payment");
     if (!allowed) return;
     const { itemId, monthName } = activeMonthPick;
-    await toggleMonthPaid(itemId, monthName, "Pending", selectedDate || null);
+    await feesAPI.recordMonthPayment(plan._id, {
+      itemId,
+      monthName,
+      amount: Number(paymentDraft.amount || 0),
+      paidDate: paymentDraft.paidDate || null,
+      paymentMode: paymentDraft.paymentMode,
+      concessionAmount: Number(paymentDraft.concessionAmount || 0),
+      note: paymentDraft.note,
+    });
+    await loadData();
     setActiveMonthPick(null);
-    setSelectedDate("");
+    setPaymentDraft(createPaymentDraft());
   }
 
   async function confirmItemDate() {
     if (!activeItemPick) return;
     const allowed = await requireSuperadminPassword("record fee payment");
     if (!allowed) return;
-    await toggleItemPaid(activeItemPick, "Pending", selectedDate || null);
+    await feesAPI.recordItemPayment(plan._id, {
+      itemId: activeItemPick,
+      amount: Number(paymentDraft.amount || 0),
+      paidDate: paymentDraft.paidDate || null,
+      paymentMode: paymentDraft.paymentMode,
+      concessionAmount: Number(paymentDraft.concessionAmount || 0),
+      note: paymentDraft.note,
+    });
+    await loadData();
     setActiveItemPick(null);
-    setSelectedDate("");
+    setPaymentDraft(createPaymentDraft());
   }
 
   function changePaymentMode(nextMode) {
@@ -227,9 +301,10 @@ function FeeDetailPage() {
     setActiveGroupPick(null);
     setActiveMonthPick(null);
     setSelectedDate("");
+    setPaymentDraft(createPaymentDraft());
   }
 
-  async function applyGroupPayment(group, paidDate) {
+  async function applyGroupPayment(group, paidDate, groupPaymentMode = "Cash") {
     if (!tuitionItem || !plan) return;
     const shouldMarkPaid = group.status !== "Paid";
     const monthsToToggle = group.months.filter((month) =>
@@ -237,7 +312,7 @@ function FeeDetailPage() {
     );
 
     for (const month of monthsToToggle) {
-      await feesAPI.toggleMonth(plan._id, tuitionItem._id, month.name, paidDate || null);
+      await feesAPI.toggleMonth(plan._id, tuitionItem._id, month.name, paidDate || null, groupPaymentMode);
     }
 
     await loadData();
@@ -255,16 +330,18 @@ function FeeDetailPage() {
     }
 
     setActiveGroupPick(group);
-    setSelectedDate("");
+    setSelectedDate(todayInputDate());
+    setPaymentDraft(createPaymentDraft(group.balanceAmount));
   }
 
   async function confirmGroupDate() {
     if (!activeGroupPick) return;
     const allowed = await requireSuperadminPassword("record fee payment");
     if (!allowed) return;
-    await applyGroupPayment(activeGroupPick, selectedDate || null);
+    await applyGroupPayment(activeGroupPick, selectedDate || null, paymentDraft.paymentMode);
     setActiveGroupPick(null);
     setSelectedDate("");
+    setPaymentDraft(createPaymentDraft());
   }
 
   async function handleDeletePlan() {
@@ -340,9 +417,16 @@ function FeeDetailPage() {
           <SummaryCard label="Total Fee" value={`₹${plan.totalFee}`} />
           <SummaryCard label="Paid" value={`₹${plan.paidAmount}`} />
           <SummaryCard
-            label="Due"
+            label={modeDueSummary.label}
             value={`₹${plan.dueAmount}`}
-            highlight={plan.dueAmount > 0}
+            highlight={modeDueSummary.amount > 0}
+            detail={modeDueSummary.detail}
+            numericValue={modeDueSummary.amount}
+          />
+          <SummaryCard
+            label="Late Fees"
+            value={`Rs. ${lateFeeTotal}`}
+            highlight={lateFeeTotal > 0}
           />
           {isSuperadmin && <div>
             <button
@@ -393,6 +477,12 @@ function FeeDetailPage() {
               value={monthlyAmount}
               onChange={(e) => setMonthlyAmount(e.target.value)}
             />
+            <Input
+              label="Late Fee Per Day (10th-30th)"
+              type="number"
+              value={lateFeeAmount}
+              onChange={(e) => setLateFeeAmount(e.target.value)}
+            />
             <button
               type="submit"
               style={{
@@ -413,30 +503,36 @@ function FeeDetailPage() {
           )
         ) : (
           <>
-            <PaymentModeSelector mode={paymentMode} onChange={changePaymentMode} />
-            <PaymentSchedule
-              activeGroupPick={activeGroupPick}
-              mode={paymentMode}
-              onCancel={() => {
-                setActiveGroupPick(null);
-                setSelectedDate("");
-              }}
-              onConfirm={confirmGroupDate}
-              onPay={handleGroupPayment}
-              canPay={isSuperadmin}
-              selectedDate={selectedDate}
-              setSelectedDate={setSelectedDate}
+            <LateFeeSettings
+              isSuperadmin={isSuperadmin}
+              lateFeeSetting={lateFeeSetting}
+              onChange={setLateFeeSetting}
+              onSubmit={handleLateFeeSetting}
               tuitionItem={tuitionItem}
             />
+            <PaymentModeSelector mode={paymentMode} onChange={changePaymentMode} />
+            {paymentMode !== "monthly" && (
+              <PaymentSchedule
+                activeGroupPick={activeGroupPick}
+                academicYear={year}
+                mode={paymentMode}
+                onCancel={() => {
+                  setActiveGroupPick(null);
+                  setSelectedDate("");
+                  setPaymentDraft(createPaymentDraft());
+                }}
+                onConfirm={confirmGroupDate}
+                onPay={handleGroupPayment}
+                canPay={isSuperadmin}
+                paymentMedium={paymentDraft.paymentMode}
+                setPaymentMedium={(value) => setPaymentDraft((current) => ({ ...current, paymentMode: value }))}
+                selectedDate={selectedDate}
+                setSelectedDate={setSelectedDate}
+                tuitionItem={tuitionItem}
+              />
+            )}
             {paymentMode === "monthly" && (
-          <div
-            style={{
-              borderRadius: "8px",
-              border: "1px solid #e5e7eb",
-              overflow: "auto",
-              background: "white",
-            }}
-          >
+          <div className="fee-monthly-table-card">
             <table
               style={{
                 width: "100%",
@@ -447,8 +543,14 @@ function FeeDetailPage() {
               <thead style={{ background: "#f9fafb" }}>
                 <tr>
                   <Th>Month</Th>
-                  <Th>Amount</Th>
+                  <Th>Base Amount</Th>
+                  <Th>Concession</Th>
+                  <Th>Late Fee</Th>
+                  <Th>Payable</Th>
+                  <Th>Paid</Th>
+                  <Th>Due</Th>
                   <Th>Status</Th>
+                  <Th>Mode</Th>
                   <Th>Paid Date</Th>
                   <Th>Action</Th>
                 </tr>
@@ -463,16 +565,22 @@ function FeeDetailPage() {
                   return (
                     <tr key={m.name}>
                       <Td>{m.name}</Td>
-                      <Td>₹{m.amount}</Td>
+                      <Td>{formatCurrency(m.amount)}</Td>
+                      <Td>{m.concessionAmount ? formatCurrency(m.concessionAmount) : "-"}</Td>
+                      <Td>{getMonthLateFeeAmount(m) ? formatCurrency(getMonthLateFeeAmount(m)) : "-"}</Td>
+                      <Td>{formatCurrency(getMonthPayableAmount(m))}</Td>
+                      <Td>{formatCurrency(getEntryPaidAmount(m, getMonthPayableAmount(m)))}</Td>
+                      <Td>{formatCurrency(getEntryDueAmount(m, year))}</Td>
                       <Td
                         style={{
                           color:
-                            m.status === "Paid" ? "#16a34a" : "#b91c1c",
+                            m.status === "Paid" ? "#16a34a" : m.status === "Partial" ? "#b45309" : "#b91c1c",
                           fontWeight: 600,
                         }}
                       >
                         {m.status}
                       </Td>
+                      <Td>{m.paymentMode || "-"}</Td>
                       <Td>
                         {m.paidDate
                           ? new Date(m.paidDate).toLocaleDateString("en-IN")
@@ -500,91 +608,20 @@ function FeeDetailPage() {
                               )
                             }
                           >
-                            {m.status === "Paid"
-                              ? "Mark Pending"
-                              : "Mark Paid"}
+                            {m.status === "Paid" ? "Reset" : m.status === "Partial" ? "Receive Balance" : "Receive"}
                           </button> : "-"}
 
-                          {/* Date picker popup */}
                           {isActive && (
-                            <div
-                              style={{
-                                position: "absolute",
-                                top: "110%",
-                                left: 0,
-                                zIndex: 10,
-                                background: "white",
-                                border: "1px solid #e5e7eb",
-                                borderRadius: "8px",
-                                padding: "8px",
-                                boxShadow:
-                                  "0 10px 15px -3px rgba(0,0,0,0.1)",
+                            <PaymentPopover
+                              draft={paymentDraft}
+                              maxAmount={getEntryBalanceAmount(m)}
+                              onCancel={() => {
+                                setActiveMonthPick(null);
+                                setPaymentDraft(createPaymentDraft());
                               }}
-                            >
-                              <div
-                                style={{
-                                  fontSize: "11px",
-                                  marginBottom: "4px",
-                                  color: "#4b5563",
-                                }}
-                              >
-                                Select payment date
-                              </div>
-                              <input
-                                type="date"
-                                value={selectedDate}
-                                onChange={(e) =>
-                                  setSelectedDate(e.target.value)
-                                }
-                                style={{
-                                  padding: "4px 6px",
-                                  borderRadius: "6px",
-                                  border: "1px solid #d1d5db",
-                                  fontSize: "12px",
-                                }}
-                              />
-                              <div
-                                style={{
-                                  marginTop: "6px",
-                                  display: "flex",
-                                  gap: "6px",
-                                  justifyContent: "flex-end",
-                                }}
-                              >
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setActiveMonthPick(null);
-                                    setSelectedDate("");
-                                  }}
-                                  style={{
-                                    background: "#e5e7eb",
-                                    border: "none",
-                                    padding: "3px 8px",
-                                    borderRadius: "999px",
-                                    fontSize: "11px",
-                                    cursor: "pointer",
-                                  }}
-                                >
-                                  Cancel
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={confirmMonthDate}
-                                  style={{
-                                    background: "#2563eb",
-                                    border: "none",
-                                    color: "white",
-                                    padding: "3px 8px",
-                                    borderRadius: "999px",
-                                    fontSize: "11px",
-                                    cursor: "pointer",
-                                  }}
-                                >
-                                  Save
-                                </button>
-                              </div>
-                            </div>
+                              onChange={setPaymentDraft}
+                              onConfirm={confirmMonthDate}
+                            />
                           )}
                         </div>
                       </Td>
@@ -628,13 +665,27 @@ function FeeDetailPage() {
           <Select
             label="Type"
             value={otherType}
-            onChange={(e) => setOtherType(e.target.value)}
+            onChange={(e) => {
+              setOtherType(e.target.value);
+              if (e.target.value !== "EXAM") setOtherMonth("");
+            }}
             options={[
               { value: "EXAM", label: "Exam Fee" },
               { value: "ACTIVITY", label: "Activity Fee" },
               { value: "OTHER", label: "Other" },
             ]}
           />
+          {otherType === "EXAM" && (
+            <Select
+              label="Exam Month"
+              value={otherMonth}
+              onChange={(e) => setOtherMonth(e.target.value)}
+              options={[
+                { value: "", label: "Select exam month" },
+                ...feeMonths.map((month) => ({ value: month, label: month })),
+              ]}
+            />
+          )}
           <Input
             label="Amount (₹)"
             type="number"
@@ -674,6 +725,7 @@ function FeeDetailPage() {
           </div>
         ) : (
           <div
+            className="fee-light-table-card"
             style={{
               borderRadius: "8px",
               border: "1px solid #e5e7eb",
@@ -692,8 +744,15 @@ function FeeDetailPage() {
                 <tr>
                   <Th>Fee Name</Th>
                   <Th>Type</Th>
+                  <Th>Month</Th>
                   <Th>Amount</Th>
+                  <Th>Concession</Th>
+                  <Th>Late Fee</Th>
+                  <Th>Payable</Th>
+                  <Th>Paid</Th>
+                  <Th>Due</Th>
                   <Th>Status</Th>
+                  <Th>Mode</Th>
                   <Th>Paid Date</Th>
                   <Th>Action</Th>
                 </tr>
@@ -705,16 +764,23 @@ function FeeDetailPage() {
                     <tr key={i._id}>
                       <Td>{i.label}</Td>
                       <Td>{i.type}</Td>
-                      <Td>₹{i.amount}</Td>
+                      <Td>{i.applicableMonth || "-"}</Td>
+                      <Td>{formatCurrency(i.amount)}</Td>
+                      <Td>{i.concessionAmount ? formatCurrency(i.concessionAmount) : "-"}</Td>
+                      <Td>{getOneTimeLateFeeAmount(i) ? formatCurrency(getOneTimeLateFeeAmount(i)) : "-"}</Td>
+                      <Td>{formatCurrency(getOneTimePayableAmount(i))}</Td>
+                      <Td>{formatCurrency(getEntryPaidAmount(i, getOneTimePayableAmount(i)))}</Td>
+                      <Td>{formatCurrency(getEntryDueAmount(i, year))}</Td>
                       <Td
                         style={{
                           color:
-                            i.status === "Paid" ? "#16a34a" : "#b91c1c",
+                            i.status === "Paid" ? "#16a34a" : i.status === "Partial" ? "#b45309" : "#b91c1c",
                           fontWeight: 600,
                         }}
                       >
                         {i.status}
                       </Td>
+                      <Td>{i.paymentMode || "-"}</Td>
                       <Td>
                         {i.paidDate
                           ? new Date(i.paidDate).toLocaleDateString("en-IN")
@@ -738,90 +804,20 @@ function FeeDetailPage() {
                               handleToggleItem(i._id, i.status)
                             }
                           >
-                            {i.status === "Paid"
-                              ? "Mark Pending"
-                              : "Mark Paid"}
+                            {i.status === "Paid" ? "Reset" : i.status === "Partial" ? "Receive Balance" : "Receive"}
                           </button> : "-"}
 
                           {isActive && (
-                            <div
-                              style={{
-                                position: "absolute",
-                                top: "110%",
-                                left: 0,
-                                zIndex: 10,
-                                background: "white",
-                                border: "1px solid #e5e7eb",
-                                borderRadius: "8px",
-                                padding: "8px",
-                                boxShadow:
-                                  "0 10px 15px -3px rgba(0,0,0,0.1)",
+                            <PaymentPopover
+                              draft={paymentDraft}
+                              maxAmount={getEntryBalanceAmount(i)}
+                              onCancel={() => {
+                                setActiveItemPick(null);
+                                setPaymentDraft(createPaymentDraft());
                               }}
-                            >
-                              <div
-                                style={{
-                                  fontSize: "11px",
-                                  marginBottom: "4px",
-                                  color: "#4b5563",
-                                }}
-                              >
-                                Select payment date
-                              </div>
-                              <input
-                                type="date"
-                                value={selectedDate}
-                                onChange={(e) =>
-                                  setSelectedDate(e.target.value)
-                                }
-                                style={{
-                                  padding: "4px 6px",
-                                  borderRadius: "6px",
-                                  border: "1px solid #d1d5db",
-                                  fontSize: "12px",
-                                }}
-                              />
-                              <div
-                                style={{
-                                  marginTop: "6px",
-                                  display: "flex",
-                                  gap: "6px",
-                                  justifyContent: "flex-end",
-                                }}
-                              >
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setActiveItemPick(null);
-                                    setSelectedDate("");
-                                  }}
-                                  style={{
-                                    background: "#e5e7eb",
-                                    border: "none",
-                                    padding: "3px 8px",
-                                    borderRadius: "999px",
-                                    fontSize: "11px",
-                                    cursor: "pointer",
-                                  }}
-                                >
-                                  Cancel
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={confirmItemDate}
-                                  style={{
-                                    background: "#2563eb",
-                                    border: "none",
-                                    color: "white",
-                                    padding: "3px 8px",
-                                    borderRadius: "999px",
-                                    fontSize: "11px",
-                                    cursor: "pointer",
-                                  }}
-                                >
-                                  Save
-                                </button>
-                              </div>
-                            </div>
+                              onChange={setPaymentDraft}
+                              onConfirm={confirmItemDate}
+                            />
                           )}
                         </div>
                       </Td>
@@ -852,9 +848,54 @@ function FeeDetailPage() {
   );
 }
 
+function PaymentPopover({ draft, maxAmount, onCancel, onChange, onConfirm }) {
+  function update(field, value) {
+    onChange((current) => ({ ...current, [field]: value }));
+  }
+
+  return (
+    <div className="fee-payment-popover">
+      <div>
+        <strong>Record Payment</strong>
+        <span>Balance: {formatCurrency(maxAmount)}</span>
+      </div>
+      <label>
+        <span>Paid amount</span>
+        <input type="number" min="1" value={draft.amount} onChange={(event) => update("amount", event.target.value)} />
+      </label>
+      <label>
+        <span>Concession / Discount</span>
+        <input type="number" min="0" value={draft.concessionAmount} onChange={(event) => update("concessionAmount", event.target.value)} />
+      </label>
+      <label>
+        <span>Payment date</span>
+        <input type="date" value={draft.paidDate} onChange={(event) => update("paidDate", event.target.value)} />
+      </label>
+      <label>
+        <span>Payment medium</span>
+        <select value={draft.paymentMode} onChange={(event) => update("paymentMode", event.target.value)}>
+          {paymentMethodOptions.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
+        </select>
+      </label>
+      <label>
+        <span>Note</span>
+        <input value={draft.note} onChange={(event) => update("note", event.target.value)} placeholder="Optional" />
+      </label>
+      <div>
+        <button className="secondary-button" type="button" onClick={onCancel}>Cancel</button>
+        <button className="primary-button" type="button" onClick={onConfirm}>Save Payment</button>
+      </div>
+    </div>
+  );
+}
+
 function FeeLedger({ ledgerRows, onReceipt }) {
   const paidRows = ledgerRows.filter((row) => row.status === "Paid");
   const totalPaid = paidRows.reduce((sum, row) => sum + row.amount, 0);
+
+  function openReceipt(row) {
+    onReceipt(buildReceiptFromLedger(row, ledgerRows));
+  }
 
   return (
     <section className="fee-ledger-section">
@@ -872,7 +913,11 @@ function FeeLedger({ ledgerRows, onReceipt }) {
               <th>Receipt</th>
               <th>Fee</th>
               <th>Period</th>
+              <th>Base</th>
+              <th>Late Fee</th>
+              <th>Concession</th>
               <th>Amount</th>
+              <th>Mode</th>
               <th>Status</th>
               <th>Paid Date</th>
               <th>Action</th>
@@ -884,12 +929,16 @@ function FeeLedger({ ledgerRows, onReceipt }) {
                 <td>{row.status === "Paid" ? row.receiptNo : "-"}</td>
                 <td>{row.label}</td>
                 <td>{row.period}</td>
+                <td>{formatCurrency(row.baseAmount || row.amount)}</td>
+                <td>{row.lateFeeAmount ? formatCurrency(row.lateFeeAmount) : "-"}</td>
+                <td>{row.concessionAmount ? formatCurrency(row.concessionAmount) : "-"}</td>
                 <td>{formatCurrency(row.amount)}</td>
+                <td>{row.paymentMode || "-"}</td>
                 <td>{row.status}</td>
                 <td>{row.paidDate ? new Date(row.paidDate).toLocaleDateString("en-IN") : "-"}</td>
                 <td>
                   {row.status === "Paid" ? (
-                    <button className="ghost-button table-action" type="button" onClick={() => onReceipt(row)}>
+                    <button className="ghost-button table-action" type="button" onClick={() => openReceipt(row)}>
                       Receipt
                     </button>
                   ) : (
@@ -900,7 +949,7 @@ function FeeLedger({ ledgerRows, onReceipt }) {
             ))}
             {ledgerRows.length === 0 && (
               <tr>
-                <td colSpan="7">No ledger entries.</td>
+                  <td colSpan="11">No ledger entries.</td>
               </tr>
             )}
           </tbody>
@@ -911,6 +960,11 @@ function FeeLedger({ ledgerRows, onReceipt }) {
 }
 
 function ReceiptModal({ onClose, receipt, student }) {
+  const schoolName = useReceiptSchoolName();
+  const receiptLines = receipt.lines?.length ? receipt.lines : [receipt];
+  const paidAmount = receipt.paidAmount ?? receipt.amount;
+  const paidDate = receipt.paidDate ? new Date(receipt.paidDate) : new Date();
+
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="receipt-modal">
@@ -924,31 +978,205 @@ function ReceiptModal({ onClose, receipt, student }) {
 
         <article className="receipt-print-area">
           <header className="receipt-header">
-            <h2>Fee Receipt</h2>
-            <span>{receipt.receiptNo}</span>
+            <div>
+              <span>{schoolName}</span>
+              <h2>Fee Receipt</h2>
+            </div>
+            <div className="receipt-number">
+              <span>Receipt No</span>
+              <strong>{receipt.receiptNo}</strong>
+            </div>
           </header>
-          <div className="receipt-grid">
-            <span>Student</span><strong>{student?.name || receipt.studentName || "-"}</strong>
-            <span>Admission No</span><strong>{student?.admissionNo || receipt.admissionNo || "-"}</strong>
-            <span>Class</span><strong>{student?.className || receipt.className || "-"}</strong>
-            <span>Academic Year</span><strong>{receipt.academicYear || "-"}</strong>
-            <span>Fee</span><strong>{receipt.label}</strong>
-            <span>Period</span><strong>{receipt.period}</strong>
-            <span>Amount</span><strong>{formatCurrency(receipt.amount)}</strong>
-            <span>Paid Date</span><strong>{new Date(receipt.paidDate).toLocaleDateString("en-IN")}</strong>
-          </div>
+
+          <section className="receipt-info-grid">
+            <div>
+              <span>Student</span>
+              <strong>{student?.name || receipt.studentName || "-"}</strong>
+            </div>
+            <div>
+              <span>Admission No</span>
+              <strong>{student?.admissionNo || receipt.admissionNo || "-"}</strong>
+            </div>
+            <div>
+              <span>Class</span>
+              <strong>{student?.className || receipt.className || "-"}</strong>
+            </div>
+            <div>
+              <span>Academic Year</span>
+              <strong>{receipt.academicYear || "-"}</strong>
+            </div>
+            <div>
+              <span>Paid For</span>
+              <strong>{receipt.periodRange || receipt.period || "-"}</strong>
+            </div>
+            <div>
+              <span>Paid Date</span>
+              <strong>{paidDate.toLocaleDateString("en-IN")}</strong>
+            </div>
+            <div>
+              <span>Payment Medium</span>
+              <strong>{receipt.paymentMode || "Cash"}</strong>
+            </div>
+          </section>
+
+          <table className="receipt-lines">
+            <thead>
+              <tr>
+                <th>Particulars</th>
+                <th>Period</th>
+                <th>Paid Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {receiptLines.map((line) => (
+                <tr key={line.id}>
+                  <td>{line.label}</td>
+                  <td>{line.period}</td>
+                  <td>{formatCurrency(line.amount)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colSpan="2">Total Paid Amount</td>
+                <td>{formatCurrency(paidAmount)}</td>
+              </tr>
+            </tfoot>
+          </table>
+
           <footer className="receipt-footer">
-            <span>Authorized Signature</span>
-            <span>School Seal</span>
+            <span>Amount received for the period shown above.</span>
+            <strong>Authorized Signature</strong>
           </footer>
         </article>
 
         <div className="receipt-actions no-print">
           <button className="secondary-button" type="button" onClick={onClose}>Close</button>
-          <button className="primary-button" type="button" onClick={() => window.print()}>Print Receipt</button>
+          <button className="primary-button" type="button" onClick={printReceiptOnly}>Print Receipt</button>
         </div>
       </div>
     </div>
+  );
+}
+
+function useReceiptSchoolName() {
+  const [schoolName, setSchoolName] = useState("School");
+
+  useEffect(() => {
+    let active = true;
+    erpAPI
+      .list("schoolSettings")
+      .then((res) => {
+        const settings = res.data?.[0]?.payload || {};
+        const nextName = String(settings.schoolName || settings.shortName || "").trim();
+        if (active && nextName) setSchoolName(nextName);
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return schoolName;
+}
+
+function buildReceiptFromLedger(row, ledgerRows) {
+  const receiptDate = toDateKey(row.paidDate);
+  const matchingRows = ledgerRows.filter((item) =>
+    item.status === "Paid" &&
+    item.feeId === row.feeId &&
+    item.label === row.label &&
+    toDateKey(item.paidDate) === receiptDate
+  );
+  const lines = sortReceiptLines(matchingRows.length ? matchingRows : [row]);
+  const paidAmount = lines.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+
+  return {
+    ...row,
+    lines,
+    paidAmount,
+    periodRange: getReceiptPeriodRange(lines, row.academicYear),
+  };
+}
+
+function sortReceiptLines(lines) {
+  return [...lines].sort((a, b) => getMonthPosition(a.period) - getMonthPosition(b.period));
+}
+
+function getReceiptPeriodRange(lines, academicYear) {
+  const tuitionLines = lines.filter((line) => getMonthPosition(line.period) >= 0);
+  if (!tuitionLines.length) {
+    return lines.map((line) => line.period).filter(Boolean).join(", ") || "-";
+  }
+
+  const sorted = sortReceiptLines(tuitionLines);
+  const firstRange = getMonthDateRange(sorted[0].period, academicYear);
+  const lastRange = getMonthDateRange(sorted[sorted.length - 1].period, academicYear);
+  return `${formatReceiptDate(firstRange.from)} to ${formatReceiptDate(lastRange.to)}`;
+}
+
+function getMonthDateRange(monthName, academicYear) {
+  const monthIndex = getMonthPosition(monthName);
+  const calendarMonth = monthIndex >= 0 && monthIndex <= 8 ? monthIndex + 3 : monthIndex - 9;
+  const { startYear, endYear } = getAcademicYearParts(academicYear);
+  const calendarYear = monthIndex >= 0 && monthIndex <= 8 ? startYear : endYear;
+
+  return {
+    from: new Date(calendarYear, calendarMonth, 1),
+    to: new Date(calendarYear, calendarMonth + 1, 0),
+  };
+}
+
+function getAcademicYearParts(academicYear) {
+  const parts = String(academicYear || "").match(/\d{4}/g) || [];
+  const startYear = Number(parts[0]) || new Date().getFullYear();
+  const endYear = Number(parts[1]) || startYear + 1;
+  return { startYear, endYear };
+}
+
+function getMonthPosition(monthName) {
+  return feeMonths.indexOf(monthName);
+}
+
+function toDateKey(date) {
+  if (!date) return "";
+  return new Date(date).toISOString().slice(0, 10);
+}
+
+function formatReceiptDate(date) {
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function LateFeeSettings({ isSuperadmin, lateFeeSetting, onChange, onSubmit, tuitionItem }) {
+  return (
+    <form className="fee-late-settings" onSubmit={onSubmit}>
+      <div>
+        <span className="eyebrow">Late Fee</span>
+        <strong>Rs. 10 per day from 10th to 30th of every month</strong>
+        <small>Current late fee: Rs. {tuitionItem?.lateFeeAmount || 10} per day, capped on the 30th.</small>
+      </div>
+      {isSuperadmin ? (
+        <>
+          <label>
+            <span>Late fee per day</span>
+            <input
+              type="number"
+              min="10"
+              value={lateFeeSetting}
+              onChange={(event) => onChange(event.target.value)}
+            />
+          </label>
+          <button className="primary-button" type="submit">Save Late Fee</button>
+        </>
+      ) : (
+        <span className="fee-status pending">Applied 10th-30th</span>
+      )}
+    </form>
   );
 }
 
@@ -970,8 +1198,21 @@ function PaymentModeSelector({ mode, onChange }) {
   );
 }
 
-function PaymentSchedule({ activeGroupPick, canPay, mode, onCancel, onConfirm, onPay, selectedDate, setSelectedDate, tuitionItem }) {
-  const groups = getPaymentGroups(tuitionItem, mode);
+function PaymentSchedule({
+  academicYear,
+  activeGroupPick,
+  canPay,
+  mode,
+  onCancel,
+  onConfirm,
+  onPay,
+  paymentMedium,
+  selectedDate,
+  setPaymentMedium,
+  setSelectedDate,
+  tuitionItem,
+}) {
+  const groups = getPaymentGroups(tuitionItem, mode, academicYear);
 
   return (
     <div className="fee-schedule">
@@ -984,8 +1225,13 @@ function PaymentSchedule({ activeGroupPick, canPay, mode, onCancel, onConfirm, o
               <span>{group.months.map((month) => month.name).join(", ")}</span>
             </div>
             <div className="fee-schedule-amount">
-              <strong>Rs. {group.amount}</strong>
-              <span className={`fee-status ${group.status.toLowerCase()}`}>{group.status}</span>
+              <strong>{formatCurrency(group.balanceAmount)}</strong>
+              <span className={`fee-status ${group.status.toLowerCase()}`}>
+                {group.status}{group.lateFeeAmount ? ` - Late Rs. ${group.lateFeeAmount}` : ""}
+              </span>
+              <small className={group.dueAmount > 0 ? "fee-schedule-due active" : "fee-schedule-due"}>
+                Due now: {formatCurrency(group.dueAmount)}
+              </small>
             </div>
             {canPay ? (
               <button className={group.status === "Paid" ? "secondary-button" : "primary-button"} type="button" onClick={() => onPay(group)}>
@@ -1001,6 +1247,14 @@ function PaymentSchedule({ activeGroupPick, canPay, mode, onCancel, onConfirm, o
                   <span>Payment date</span>
                   <input type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} />
                 </label>
+                <label>
+                  <span>Payment medium</span>
+                  <select value={paymentMedium} onChange={(event) => setPaymentMedium(event.target.value)}>
+                    {paymentMethodOptions.map((method) => (
+                      <option key={method} value={method}>{method}</option>
+                    ))}
+                  </select>
+                </label>
                 <div>
                   <button className="secondary-button" type="button" onClick={onCancel}>Cancel</button>
                   <button className="primary-button" type="button" onClick={onConfirm}>Save</button>
@@ -1014,10 +1268,35 @@ function PaymentSchedule({ activeGroupPick, canPay, mode, onCancel, onConfirm, o
   );
 }
 
-function getPaymentGroups(tuitionItem, mode) {
+function getPaymentModeDueSummary(tuitionItem, otherItems, mode, academicYear) {
+  const tuitionDue = getPaymentGroups(tuitionItem, mode, academicYear)
+    .reduce((sum, group) => sum + Number(group.dueAmount || 0), 0);
+  const otherDue = (otherItems || [])
+    .reduce((sum, item) => sum + getEntryDueAmount(item, academicYear), 0);
+
+  return {
+    amount: tuitionDue + otherDue,
+    label: `${getPaymentModeLabel(mode)} Due`,
+    detail: getPaymentModeDueDetail(mode),
+  };
+}
+
+function getPaymentModeLabel(mode) {
+  if (mode === "quarterly") return "Quarterly";
+  if (mode === "yearly") return "Annual";
+  return "Monthly";
+}
+
+function getPaymentModeDueDetail(mode) {
+  if (mode === "quarterly") return "Current and past quarters";
+  if (mode === "yearly") return "Full active year balance";
+  return "Current and past months";
+}
+
+function getPaymentGroups(tuitionItem, mode, academicYear) {
   const months = tuitionItem?.months || [];
   if (mode === "yearly") {
-    return [toPaymentGroup("yearly", "Yearly Payment", months)];
+    return [toPaymentGroup("yearly", "Yearly Payment", months, academicYear, mode)];
   }
 
   if (mode === "quarterly") {
@@ -1025,27 +1304,134 @@ function getPaymentGroups(tuitionItem, mode) {
       toPaymentGroup(
         `quarter-${index + 1}`,
         `Quarter ${index + 1}`,
-        names.map((name) => months.find((month) => month.name === name)).filter(Boolean)
+        names.map((name) => months.find((month) => month.name === name)).filter(Boolean),
+        academicYear,
+        mode
       )
     );
   }
 
-  return months.map((month) => toPaymentGroup(month.name, month.name, [month]));
+  return months.map((month) => toPaymentGroup(month.name, month.name, [month], academicYear, mode));
 }
 
-function toPaymentGroup(key, label, months) {
-  const paidCount = months.filter((month) => month.status === "Paid").length;
-  const status = months.length && paidCount === months.length ? "Paid" : paidCount > 0 ? "Partial" : "Pending";
+function toPaymentGroup(key, label, months, academicYear, mode) {
+  const lateFeeAmount = months.reduce((sum, month) => sum + getMonthLateFeeAmount(month), 0);
+  const payableAmount = months.reduce((sum, month) => sum + getMonthPayableAmount(month), 0);
+  const paidAmount = months.reduce(
+    (sum, month) => sum + getEntryPaidAmount(month, getMonthPayableAmount(month)),
+    0
+  );
+  const balanceAmount = Math.max(0, payableAmount - paidAmount);
+  const dueAmount = isPaymentGroupDueNow(months, academicYear, mode) ? balanceAmount : 0;
+  const status = months.length && balanceAmount <= 0 ? "Paid" : paidAmount > 0 ? "Partial" : "Pending";
+
   return {
     key,
     label,
     months,
-    amount: months.reduce((sum, month) => sum + Number(month.amount || 0), 0),
+    amount: payableAmount,
+    balanceAmount,
+    dueAmount,
+    lateFeeAmount,
+    paidAmount,
     status,
   };
 }
 
-function SummaryCard({ label, value, highlight }) {
+function isPaymentGroupDueNow(months, academicYear, mode) {
+  if (!months.length) return false;
+
+  if (mode === "quarterly" || mode === "yearly") {
+    return isFeeMonthDueNow(months[0].name, academicYear);
+  }
+
+  return months.some((month) => isFeeMonthDueNow(month.name, academicYear));
+}
+
+function getMonthLateFeeAmount(month) {
+  return month.status === "Paid"
+    ? Number(month.lateFeePaidAmount || month.lateFeeDueAmount || 0)
+    : Number(month.lateFeeDueAmount || 0);
+}
+
+function getMonthPayableAmount(month) {
+  return Math.max(0, Number(month.amount || 0) - Number(month.concessionAmount || 0)) + getMonthLateFeeAmount(month);
+}
+
+function getOneTimePayableAmount(item) {
+  return Math.max(0, Number(item?.amount || 0) - Number(item?.concessionAmount || 0)) + getOneTimeLateFeeAmount(item);
+}
+
+function getEntryPaidAmount(entry, payableAmount) {
+  const paymentsTotal = (entry?.payments || []).reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+  if (paymentsTotal > 0) return paymentsTotal;
+  const storedPaid = Number(entry?.amountPaid || 0);
+  if (storedPaid > 0) return storedPaid;
+  return entry?.status === "Paid" ? payableAmount : 0;
+}
+
+function getEntryBalanceAmount(entry) {
+  if (!entry) return 0;
+  const payableAmount = entry.name ? getMonthPayableAmount(entry) : getOneTimePayableAmount(entry);
+  return Math.max(0, payableAmount - getEntryPaidAmount(entry, payableAmount));
+}
+
+function getEntryDueAmount(entry, academicYear) {
+  if (!entry) return 0;
+  const balanceAmount = getEntryBalanceAmount(entry);
+  return isEntryDueNow(entry, academicYear) ? balanceAmount : 0;
+}
+
+function getOneTimeLateFeeAmount(item) {
+  return item?.status === "Paid"
+    ? Number(item.lateFeePaidAmount || item.lateFeeDueAmount || 0)
+    : Number(item?.lateFeeDueAmount || 0);
+}
+
+function isEntryDueNow(entry, academicYear, asOf = new Date()) {
+  if (entry?.name) return isFeeMonthDueNow(entry.name, academicYear, asOf);
+  if (entry?.applicableMonth) return isFeeMonthDueNow(entry.applicableMonth, academicYear, asOf);
+  return true;
+}
+
+function isFeeMonthDueNow(monthName, academicYear, asOf = new Date()) {
+  if (getMonthPosition(monthName) < 0) return true;
+  return getMonthDateRange(monthName, academicYear).from <= normalizeDate(asOf);
+}
+
+function normalizeDate(date) {
+  const next = date ? new Date(date) : new Date();
+  next.setHours(0, 0, 0, 0);
+  return next;
+}
+
+function createPaymentDraft(amount = "") {
+  return {
+    amount: amount ? String(amount) : "",
+    concessionAmount: "0",
+    paidDate: todayInputDate(),
+    paymentMode: "Cash",
+    note: "",
+  };
+}
+
+function todayInputDate(date = new Date()) {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 10);
+}
+
+function getLateFeeTotal(tuitionItem, otherItems = []) {
+  const tuitionLateFee = (tuitionItem?.months || []).reduce(
+    (sum, month) => sum + getMonthLateFeeAmount(month),
+    0
+  );
+  const otherLateFee = otherItems.reduce((sum, item) => sum + getOneTimeLateFeeAmount(item), 0);
+  return tuitionLateFee + otherLateFee;
+}
+
+function SummaryCard({ detail, highlight, label, numericValue, value }) {
+  const displayValue = numericValue !== undefined ? formatCurrency(numericValue) : value;
+
   return (
     <div
       style={{
@@ -1066,8 +1452,13 @@ function SummaryCard({ label, value, highlight }) {
           color: highlight ? "#b91c1c" : "#111827",
         }}
       >
-        {value}
+        {displayValue}
       </div>
+      {detail && (
+        <small style={{ color: "#64748b", display: "block", marginTop: "5px" }}>
+          {detail}
+        </small>
+      )}
     </div>
   );
 }
@@ -1129,6 +1520,8 @@ function Input({ label, fullWidth, ...props }) {
           padding: "8px 10px",
           borderRadius: "8px",
           border: "1px solid #d1d5db",
+          color: "#111827",
+          backgroundColor: "white",
           fontSize: "14px",
         }}
       />
@@ -1161,6 +1554,7 @@ function Select({ label, options, fullWidth, ...props }) {
           borderRadius: "8px",
           border: "1px solid #d1d5db",
           fontSize: "14px",
+          color: "#111827",
           backgroundColor: "white",
         }}
       >

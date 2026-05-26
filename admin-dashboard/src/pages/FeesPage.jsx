@@ -1,15 +1,20 @@
 // src/pages/FeesPage.jsx
 /* eslint-disable react-hooks/immutability */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { studentsAPI, feesAPI } from "../api";
 import { Link } from "react-router-dom";
+import AcademicYearSelect from "../components/AcademicYearSelect";
+import { getCurrentAcademicYear } from "../utils/academicYear";
 
 function FeesPage() {
   const [students, setStudents] = useState([]);
   const [fees, setFees] = useState([]);
+  const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [selectedClass, setSelectedClass] = useState("all");
+  const [activeYear, setActiveYear] = useState(getCurrentAcademicYear());
 
   useEffect(() => {
     loadData();
@@ -19,12 +24,14 @@ function FeesPage() {
     try {
       setLoading(true);
       setError("");
-      const [studentsRes, feesRes] = await Promise.all([
+      const [studentsRes, feesRes, classesRes] = await Promise.all([
         studentsAPI.getAll(),
         feesAPI.getAll(),
+        studentsAPI.getClasses().catch(() => ({ data: [] })),
       ]);
       setStudents(studentsRes.data || []);
       setFees(feesRes.data || []);
+      setClasses(classesRes.data || []);
     } catch (err) {
       console.error(err);
       setError(
@@ -44,24 +51,45 @@ function FeesPage() {
     return acc;
   }, {});
 
-  // For now we assume one active year, e.g. 2024-2025
-  const activeYear = "2024-2025";
+  const classOptions = useMemo(() => {
+    const names = new Set([
+      ...classes,
+      ...students.map((student) => student.className).filter(Boolean),
+    ]);
 
-  // Filter students by search (name, admission no, class)
+    return Array.from(names).sort((a, b) =>
+      String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" })
+    );
+  }, [classes, students]);
+
+  // Filter students by search and class
   const normalizedSearch = search.trim().toLowerCase();
-  const filteredStudents =
-    normalizedSearch === ""
-      ? students
-      : students.filter((s) => {
-          const name = s.name?.toLowerCase() || "";
-          const adm = String(s.admissionNo || "").toLowerCase();
-          const cls = s.className?.toLowerCase() || "";
-          return (
-            name.includes(normalizedSearch) ||
-            adm.includes(normalizedSearch) ||
-            cls.includes(normalizedSearch)
-          );
-        });
+  const filteredStudents = students.filter((s) => {
+    const matchesClass = selectedClass === "all" || s.className === selectedClass;
+    if (!matchesClass) return false;
+    if (normalizedSearch === "") return true;
+
+    const name = s.name?.toLowerCase() || "";
+    const adm = String(s.admissionNo || "").toLowerCase();
+    const cls = s.className?.toLowerCase() || "";
+    return (
+      name.includes(normalizedSearch) ||
+      adm.includes(normalizedSearch) ||
+      cls.includes(normalizedSearch)
+    );
+  });
+
+  const studentsByClass = useMemo(() => {
+    const groups = filteredStudents.reduce((acc, student) => {
+      const className = student.className || "Unassigned";
+      acc[className] = [...(acc[className] || []), student];
+      return acc;
+    }, {});
+
+    return Object.entries(groups).sort(([a], [b]) =>
+      a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })
+    );
+  }, [filteredStudents]);
 
   return (
     <>
@@ -105,19 +133,21 @@ function FeesPage() {
         </div>
       )}
 
-      {/* Search box */}
-      <section
-        style={{
-          marginBottom: 16,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 12,
-          flexWrap: "wrap",
-        }}
-      >
-        <div style={{ flex: "1 1 260px", maxWidth: 360 }}>
-          <div style={{ position: "relative" }}>
+      <section className="fees-toolbar">
+        <div className="fees-toolbar-controls">
+          <AcademicYearSelect className="fees-filter-control" value={activeYear} onChange={setActiveYear} />
+
+          <label className="fees-filter-control">
+            <span>Class</span>
+            <select value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)}>
+              <option value="all">All classes</option>
+              {classOptions.map((className) => (
+                <option key={className} value={className}>{className}</option>
+              ))}
+            </select>
+          </label>
+
+          <div className="fees-search-box">
             <input
               type="text"
               value={search}
@@ -134,18 +164,6 @@ function FeesPage() {
                 color: "#e5e7eb",
               }}
             />
-            <span
-              style={{
-                position: "absolute",
-                right: 10,
-                top: "50%",
-                transform: "translateY(-50%)",
-                fontSize: 11,
-                color: "#6b7280",
-              }}
-            >
-              /
-            </span>
           </div>
         </div>
         <Link className="secondary-button" to="/fees/collections" style={{ textDecoration: "none" }}>
@@ -167,104 +185,96 @@ function FeesPage() {
             Loading fees...
           </div>
         ) : (
-          <div
-            style={{
-              borderRadius: 16,
-              border: "1px solid rgba(148,163,184,0.45)",
-              overflow: "hidden",
-              background:
-                "linear-gradient(145deg, rgba(15,23,42,0.98), rgba(15,23,42,0.92))",
-              boxShadow: "0 18px 45px rgba(15,23,42,0.9)",
-            }}
-          >
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: 12.5,
-              }}
-            >
-              <thead
-                style={{
-                  background:
-                    "linear-gradient(90deg, rgba(30,64,175,0.24), rgba(15,23,42,0.9))",
-                }}
-              >
-                <tr>
-                  <Th>Admission No</Th>
-                  <Th>Student name</Th>
-                  <Th>Class</Th>
-                  <Th>Academic year</Th>
-                  <Th>Total fee</Th>
-                  <Th>Paid</Th>
-                  <Th>Due</Th>
-                  <Th>Actions</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredStudents.length === 0 ? (
-                  <tr>
-                    <Td
-                      colSpan={8}
-                      style={{
-                        textAlign: "center",
-                        padding: 24,
-                        color: "#9ca3af",
-                      }}
-                    >
-                      No students found.
-                    </Td>
-                  </tr>
-                ) : (
-                  filteredStudents.map((s, index) => {
-                    const key = `${s._id}-${activeYear}`;
-                    const plan = plansByStudentYear[key];
-
-                    const total = plan ? plan.totalFee : 0;
-                    const paid = plan ? plan.paidAmount : 0;
-                    const due = plan ? plan.dueAmount : total - paid;
-
-                    return (
-                      <tr
-                        key={s._id}
-                        style={{
-                          background:
-                            index % 2 === 0
-                              ? "rgba(15,23,42,0.95)"
-                              : "rgba(15,23,42,0.9)",
-                        }}
-                      >
-                        <Td>{s.admissionNo}</Td>
-                        <Td>{s.name}</Td>
-                        <Td>{s.className}</Td>
-                        <Td>{activeYear}</Td>
-                        <Td>Rs. {total}</Td>
-                        <Td>Rs. {paid}</Td>
-                        <Td
-                          style={{
-                            color: due > 0 ? "#f97373" : "#4ade80",
-                            fontWeight: 600,
-                          }}
-                        >
-                          Rs. {due}
-                        </Td>
-                        <Td>
-                          <div className="fee-action-options">
-                            <Link to={`/fees/${s._id}/${activeYear}?mode=monthly`}>Monthly</Link>
-                            <Link to={`/fees/${s._id}/${activeYear}?mode=quarterly`}>Quarterly</Link>
-                            <Link to={`/fees/${s._id}/${activeYear}?mode=yearly`}>Yearly</Link>
-                          </div>
-                        </Td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+          <div className="fees-class-stack">
+            {studentsByClass.length === 0 ? (
+              <div className="empty-state">No students found.</div>
+            ) : (
+              studentsByClass.map(([className, classStudents]) => (
+                <article className="fees-class-card" key={className}>
+                  <div className="fees-class-heading">
+                    <div>
+                      <span className="eyebrow">Class</span>
+                      <h3>{className}</h3>
+                    </div>
+                    <strong>{classStudents.length} students</strong>
+                  </div>
+                  <div className="fees-student-table-wrap">
+                    <table className="fees-student-table">
+                      <thead>
+                        <tr>
+                          <Th>Admission No</Th>
+                          <Th>Student name</Th>
+                          <Th>Academic year</Th>
+                          <Th>Total fee</Th>
+                          <Th>Late fees</Th>
+                          <Th>Paid</Th>
+                          <Th>Due</Th>
+                          <Th>Actions</Th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {classStudents.map((student, index) => (
+                          <StudentFeeRow
+                            activeYear={activeYear}
+                            index={index}
+                            key={student._id}
+                            plan={plansByStudentYear[`${student._id}-${activeYear}`]}
+                            student={student}
+                          />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </article>
+              ))
+            )}
           </div>
         )}
       </section>
     </>
+  );
+}
+
+function StudentFeeRow({ activeYear, index, plan, student }) {
+  const total = plan ? plan.totalFee : 0;
+  const late = plan ? getPlanLateFee(plan) : 0;
+  const paid = plan ? plan.paidAmount : 0;
+  const due = plan ? plan.dueAmount : total - paid;
+
+  return (
+    <tr
+      style={{
+        background:
+          index % 2 === 0
+            ? "rgba(15,23,42,0.95)"
+            : "rgba(15,23,42,0.9)",
+      }}
+    >
+      <Td>{student.admissionNo}</Td>
+      <Td>
+        <strong>{student.name}</strong>
+        <small>{student.className || "Unassigned"}</small>
+      </Td>
+      <Td>{activeYear}</Td>
+      <Td>Rs. {total}</Td>
+      <Td style={{ color: late > 0 ? "#fbbf24" : "#d1d5db", fontWeight: late > 0 ? 600 : 400 }}>Rs. {late}</Td>
+      <Td>Rs. {paid}</Td>
+      <Td
+        style={{
+          color: due > 0 ? "#f97373" : "#4ade80",
+          fontWeight: 600,
+        }}
+      >
+        Rs. {due}
+      </Td>
+      <Td>
+        <div className="fee-action-options">
+          <Link to={`/fees/${student._id}/${activeYear}?mode=monthly`}>Monthly</Link>
+          <Link to={`/fees/${student._id}/${activeYear}?mode=quarterly`}>Quarterly</Link>
+          <Link to={`/fees/${student._id}/${activeYear}?mode=yearly`}>Yearly</Link>
+        </div>
+      </Td>
+    </tr>
   );
 }
 
@@ -286,7 +296,7 @@ function Th({ children }) {
   );
 }
 
-function Td({ children, ...rest }) {
+function Td({ children, style, ...rest }) {
   return (
     <td
       style={{
@@ -294,12 +304,32 @@ function Td({ children, ...rest }) {
         borderBottom: "1px solid rgba(31,41,55,0.9)",
         color: "#d1d5db",
         verticalAlign: "top",
+        ...style,
       }}
       {...rest}
     >
       {children}
     </td>
   );
+}
+
+function getPlanLateFee(plan) {
+  return (plan?.items || []).reduce((sum, item) => {
+    if (item.mode === "ONE_TIME") {
+      return sum + (item.status === "Paid"
+        ? Number(item.lateFeePaidAmount || item.lateFeeDueAmount || 0)
+        : Number(item.lateFeeDueAmount || 0));
+    }
+
+    if (item.mode !== "MONTHLY") return sum;
+
+    return sum + (item.months || []).reduce((monthSum, month) => {
+      const lateFee = month.status === "Paid"
+        ? Number(month.lateFeePaidAmount || month.lateFeeDueAmount || 0)
+        : Number(month.lateFeeDueAmount || 0);
+      return monthSum + lateFee;
+    }, 0);
+  }, 0);
 }
 
 export default FeesPage;

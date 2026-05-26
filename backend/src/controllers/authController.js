@@ -120,13 +120,13 @@ exports.confirmPassword = async (req, res) => {
   try {
     const { password } = req.body;
     if (!password) return res.status(400).json({ error: 'Password is required' });
-    if (req.user.role !== 'superadmin') {
-      return res.status(403).json({ error: 'Superadmin password required' });
+    if (!['superadmin', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Admin password required' });
     }
 
     const user = await User.findById(req.user._id).select('+password');
     if (!user || !(await user.comparePassword(password))) {
-      return res.status(401).json({ error: 'Invalid superadmin password' });
+      return res.status(401).json({ error: 'Invalid admin password' });
     }
 
     res.json({ success: true });
@@ -137,7 +137,7 @@ exports.confirmPassword = async (req, res) => {
 
 exports.listUsers = async (req, res) => {
   try {
-    const filter = req.user.role === 'admin' ? { role: 'student' } : {};
+    const filter = req.user.role === 'admin' ? { role: { $in: ['student', 'teacher'] } } : {};
     const users = await User.find(filter).select('-password -otpHash').sort({ role: 1, name: 1 }).lean();
     res.json(users);
   } catch (error) {
@@ -147,12 +147,12 @@ exports.listUsers = async (req, res) => {
 
 exports.createUser = async (req, res) => {
   try {
-    const requestedRole = req.user.role === 'admin' ? 'student' : req.body.role;
+    const requestedRole = req.body.role;
     const { name, username, email, password, phone } = req.body;
     const role = requestedRole || 'student';
 
-    if (req.user.role === 'admin' && role !== 'student') {
-      return res.status(403).json({ error: 'Admin can create student accounts only' });
+    if (req.user.role === 'admin' && !['student', 'teacher'].includes(role)) {
+      return res.status(403).json({ error: 'Admin can create student and teacher accounts only' });
     }
 
     const existingUser = await User.findOne({

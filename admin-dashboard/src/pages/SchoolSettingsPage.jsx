@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { BookOpen, Bus, FileBadge, GraduationCap, Plus, ReceiptText, Save, School, ShieldCheck, X } from "lucide-react";
-import { authAPI, erpAPI, uploadsAPI } from "../api";
+import { academicYearsAPI, authAPI, erpAPI, studentsAPI, uploadsAPI } from "../api";
+import AcademicYearSelect from "../components/AcademicYearSelect";
+import { getCurrentAcademicYear, normalizeAcademicYear } from "../utils/academicYear";
 import { applySchoolBranding } from "../utils/branding";
 
 const emptySettings = {
@@ -172,7 +174,7 @@ function SchoolSettingsPage() {
           <div className="form-grid">
             <Field label="School name" value={form.schoolName} onChange={(value) => updateForm("schoolName", value)} required />
             <Field label="Short name" value={form.shortName} onChange={(value) => updateForm("shortName", value)} />
-            <Field label="Academic year" value={form.academicYear} onChange={(value) => updateForm("academicYear", value)} />
+            <AcademicYearSelect className="field" value={form.academicYear} onChange={(value) => updateForm("academicYear", value)} />
             <label className="field logo-upload-field">
               <span>School logo</span>
               <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={uploadLogo} />
@@ -196,6 +198,8 @@ function SchoolSettingsPage() {
             <Field label="State" value={form.state} onChange={(value) => updateForm("state", value)} />
           </div>
         </article>
+
+        <AcademicYearManager />
 
         <article className="chart-card">
           <div className="section-heading">
@@ -267,6 +271,144 @@ function SchoolSettingsPage() {
   );
 }
 
+function AcademicYearManager() {
+  const [years, setYears] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [newYear, setNewYear] = useState(getCurrentAcademicYear());
+  const [promotion, setPromotion] = useState({
+    academicYear: getCurrentAcademicYear(),
+    fromClass: "",
+    toClass: "",
+  });
+  const [status, setStatus] = useState("Loading academic years...");
+
+  useEffect(() => {
+    loadAcademicYears();
+    studentsAPI.getClasses().then((res) => setClasses(res.data || [])).catch(() => setClasses([]));
+  }, []);
+
+  async function loadAcademicYears() {
+    try {
+      const res = await academicYearsAPI.getAll();
+      setYears(res.data || []);
+      setStatus("");
+    } catch (error) {
+      setStatus(error.response?.data?.error || "Academic years can be managed when backend is available.");
+    }
+  }
+
+  async function saveYear() {
+    try {
+      await academicYearsAPI.save({ academicYear: newYear, status: "Upcoming" });
+      setStatus("Academic year saved.");
+      await loadAcademicYears();
+    } catch (error) {
+      setStatus(error.response?.data?.error || "Unable to save academic year.");
+    }
+  }
+
+  async function activateYear(year) {
+    try {
+      await academicYearsAPI.activate(year._id);
+      setStatus(`${year.label} activated.`);
+      await loadAcademicYears();
+    } catch (error) {
+      setStatus(error.response?.data?.error || "Unable to activate academic year.");
+    }
+  }
+
+  async function closeYear(year) {
+    try {
+      await academicYearsAPI.close(year._id);
+      setStatus(`${year.label} closed.`);
+      await loadAcademicYears();
+    } catch (error) {
+      setStatus(error.response?.data?.error || "Unable to close academic year.");
+    }
+  }
+
+  async function promoteClass() {
+    if (!promotion.fromClass || !promotion.toClass) {
+      setStatus("Select from class and to class for promotion.");
+      return;
+    }
+
+    const ok = window.confirm(`Promote all active students from ${promotion.fromClass} to ${promotion.toClass}?`);
+    if (!ok) return;
+
+    try {
+      const res = await academicYearsAPI.promote(promotion);
+      setStatus(`${res.data.promoted || 0} students promoted.`);
+      studentsAPI.getClasses().then((classRes) => setClasses(classRes.data || [])).catch(() => {});
+    } catch (error) {
+      setStatus(error.response?.data?.error || "Unable to promote students.");
+    }
+  }
+
+  return (
+    <article className="chart-card wide academic-year-manager">
+      <div className="section-heading">
+        <div>
+          <span className="eyebrow">Academic Year</span>
+          <h3>Session Control</h3>
+        </div>
+        <ShieldCheck size={20} />
+      </div>
+
+      {status && <div className="inline-alert">{status}</div>}
+
+      <div className="academic-year-layout">
+        <section className="academic-year-panel">
+          <h4>Add / Prepare Year</h4>
+          <div className="academic-year-actions">
+            <AcademicYearSelect className="field" value={newYear} onChange={setNewYear} />
+            <button className="primary-button" type="button" onClick={saveYear}>
+              <Plus size={17} /> Add Year
+            </button>
+          </div>
+          <div className="academic-year-list">
+            {years.map((year) => (
+              <div className="academic-year-row" key={year._id}>
+                <div>
+                  <strong>{year.label}</strong>
+                  <span>{formatDate(year.startDate)} to {formatDate(year.endDate)}</span>
+                </div>
+                <span className={`transport-status status-${String(year.status).toLowerCase()}`}>{year.status}</span>
+                <div className="table-action-group">
+                  {year.status !== "Active" && <button className="table-action" type="button" onClick={() => activateYear(year)}>Activate</button>}
+                  {year.status !== "Closed" && <button className="table-action danger" type="button" onClick={() => closeYear(year)}>Close</button>}
+                </div>
+              </div>
+            ))}
+            {!years.length && <div className="empty-state">No academic years created.</div>}
+          </div>
+        </section>
+
+        <section className="academic-year-panel">
+          <h4>Class Promotion</h4>
+          <div className="form-grid single">
+            <AcademicYearSelect className="field" value={promotion.academicYear} onChange={(value) => setPromotion((current) => ({ ...current, academicYear: value }))} />
+            <label className="field">
+              <span>From class</span>
+              <select value={promotion.fromClass} onChange={(event) => setPromotion((current) => ({ ...current, fromClass: event.target.value }))}>
+                <option value="">Select class</option>
+                {classes.map((className) => <option key={className} value={className}>{className}</option>)}
+              </select>
+            </label>
+            <label className="field">
+              <span>To class</span>
+              <input value={promotion.toClass} onChange={(event) => setPromotion((current) => ({ ...current, toClass: event.target.value }))} placeholder="Example: 7A" />
+            </label>
+            <button className="primary-button" type="button" onClick={promoteClass}>
+              Promote Class
+            </button>
+          </div>
+        </section>
+      </div>
+    </article>
+  );
+}
+
 function Field({ label, value, onChange, type = "text", required }) {
   return (
     <label className="field">
@@ -309,12 +451,20 @@ function MasterGroup({ group, items, draft, onDraftChange, onAdd, onRemove }) {
 function normalizeSettings(settings = {}) {
   const normalized = { ...emptySettings, ...settings };
   delete normalized.superadminPassword;
+  normalized.academicYear = normalizeAcademicYear(normalized.academicYear);
   masterGroups.forEach((group) => {
     normalized[group.key] = Array.isArray(normalized[group.key])
       ? normalized[group.key].map((item) => String(item).trim()).filter(Boolean)
       : [];
   });
   return normalized;
+}
+
+function formatDate(date) {
+  if (!date) return "-";
+  const next = new Date(date);
+  if (Number.isNaN(next.getTime())) return "-";
+  return next.toLocaleDateString("en-IN");
 }
 
 export default SchoolSettingsPage;
