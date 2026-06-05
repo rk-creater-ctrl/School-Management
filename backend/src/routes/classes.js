@@ -1,10 +1,16 @@
 const express = require("express");
 const Class = require("../models/Class");
+const auth = require("../middleware/auth");
+const { authorize } = require("../middleware/auth");
 
 const router = express.Router();
+const CLASS_VIEW_ROLES = ["admin", "teacher"];
+const CLASS_MANAGE_ROLES = ["teacher"];
+
+router.use(auth);
 
 // GET /api/classes - list all classes
-router.get("/", async (req, res) => {
+router.get("/", authorize(...CLASS_VIEW_ROLES), async (req, res) => {
   try {
     const classes = await Class.find().sort({ name: 1 });
     res.json(classes);
@@ -15,7 +21,7 @@ router.get("/", async (req, res) => {
 });
 
 // GET /api/classes/:id - single class
-router.get("/:id", async (req, res) => {
+router.get("/:id", authorize(...CLASS_VIEW_ROLES), async (req, res) => {
   try {
     const cls = await Class.findById(req.params.id);
     if (!cls) return res.status(404).json({ error: "Class not found" });
@@ -27,7 +33,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // POST /api/classes - create class
-router.post("/", async (req, res) => {
+router.post("/", authorize(...CLASS_MANAGE_ROLES), async (req, res) => {
   try {
     const data = req.body;
     if (!data.name) {
@@ -51,7 +57,7 @@ router.post("/", async (req, res) => {
 });
 
 // PUT /api/classes/:id - update class
-router.put("/:id", async (req, res) => {
+router.put("/:id", authorize(...CLASS_MANAGE_ROLES), async (req, res) => {
   try {
     const data = req.body;
 
@@ -82,7 +88,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // DELETE /api/classes/:id - delete class
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", authorize("superadmin"), async (req, res) => {
   try {
     const cls = await Class.findByIdAndDelete(req.params.id);
     if (!cls) return res.status(404).json({ error: "Class not found" });

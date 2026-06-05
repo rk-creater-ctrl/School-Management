@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { BadgeCheck, FileText, IdCard, Printer, ScrollText, Upload } from "lucide-react";
+import { BadgeCheck, FileText, IdCard, Printer, ScrollText, Upload, Users } from "lucide-react";
 
 const defaultSubjects = [
   { subject: "", marks: "", max: "" },
@@ -12,15 +12,23 @@ const defaultSubjects = [
 function DocumentsPage() {
   const [activeTab, setActiveTab] = useState("marksheet");
   const [idPhoto, setIdPhoto] = useState("");
+  const [parentPhoto, setParentPhoto] = useState("");
   const [student, setStudent] = useState({
     name: "",
     fatherName: "",
+    motherName: "",
     schoolName: "",
     mobile: "",
     dob: "",
     studentCode: "",
     className: "",
     rollNo: "",
+    address: "",
+    parentName: "",
+    parentRelation: "Father",
+    parentMobile: "",
+    parentCardNo: "",
+    parentValidUntil: "",
     examName: "",
     academicYear: "",
     certificateNo: "",
@@ -53,10 +61,10 @@ function DocumentsPage() {
     setSubjects((current) => [...current, { subject: "", marks: "", max: "" }]);
   }
 
-  function handlePhoto(event) {
+  function handlePhoto(event, setPhoto) {
     const file = event.target.files?.[0];
     if (!file) return;
-    setIdPhoto(URL.createObjectURL(file));
+    setPhoto(URL.createObjectURL(file));
   }
 
   function printDocument() {
@@ -68,7 +76,7 @@ function DocumentsPage() {
       <section className="module-hero no-print">
         <div>
           <span className="eyebrow">Documents</span>
-          <h2>Generate marksheets, ID cards, and certificates.</h2>
+          <h2>Generate marksheets, ID cards, parent cards, and certificates.</h2>
           <p>Create printable school records with student details, marks, photo, parent details, mobile number, DOB, and 10 digit student code.</p>
         </div>
         <div className="module-actions">
@@ -77,6 +85,9 @@ function DocumentsPage() {
           </button>
           <button className={activeTab === "idcard" ? "primary-button" : "secondary-button"} onClick={() => setActiveTab("idcard")}>
             <IdCard size={18} /> ID Card
+          </button>
+          <button className={activeTab === "parentcard" ? "primary-button" : "secondary-button"} onClick={() => setActiveTab("parentcard")}>
+            <Users size={18} /> Parent Card
           </button>
           <button className={activeTab === "character" ? "primary-button" : "secondary-button"} onClick={() => setActiveTab("character")}>
             <ScrollText size={18} /> Character Certificate
@@ -98,6 +109,7 @@ function DocumentsPage() {
           <div className="form-grid">
             <Field label="Name" value={student.name} onChange={(value) => updateStudent("name", value)} />
             <Field label="Father's name" value={student.fatherName} onChange={(value) => updateStudent("fatherName", value)} />
+            <Field label="Mother's name" value={student.motherName} onChange={(value) => updateStudent("motherName", value)} />
             <Field label="School name" value={student.schoolName} onChange={(value) => updateStudent("schoolName", value)} />
             <Field label="Mobile number" value={student.mobile} onChange={(value) => updateStudent("mobile", value)} maxLength={10} />
             <Field label="DOB" type="date" value={student.dob} onChange={(value) => updateStudent("dob", value)} />
@@ -131,8 +143,32 @@ function DocumentsPage() {
             <label className="upload-strip">
               <Upload size={17} />
               <span>Upload photo</span>
-              <input type="file" accept="image/*" onChange={handlePhoto} />
+              <input type="file" accept="image/*" onChange={(event) => handlePhoto(event, setIdPhoto)} />
             </label>
+          )}
+
+          {activeTab === "parentcard" && (
+            <>
+              <div className="section-heading compact-heading">
+                <div>
+                  <span className="eyebrow">Parent card</span>
+                  <h3>Guardian details</h3>
+                </div>
+              </div>
+              <div className="form-grid">
+                <Field label="Parent / guardian name" value={student.parentName} onChange={(value) => updateStudent("parentName", value)} />
+                <Field label="Relation" value={student.parentRelation} onChange={(value) => updateStudent("parentRelation", value)} />
+                <Field label="Parent mobile" value={student.parentMobile} onChange={(value) => updateStudent("parentMobile", value)} maxLength={10} />
+                <Field label="Parent card no." value={student.parentCardNo} onChange={(value) => updateStudent("parentCardNo", value.toUpperCase())} />
+                <Field label="Valid until" type="date" value={student.parentValidUntil} onChange={(value) => updateStudent("parentValidUntil", value)} />
+                <Field label="Address" value={student.address} onChange={(value) => updateStudent("address", value)} />
+              </div>
+              <label className="upload-strip">
+                <Upload size={17} />
+                <span>Upload parent photo</span>
+                <input type="file" accept="image/*" onChange={(event) => handlePhoto(event, setParentPhoto)} />
+              </label>
+            </>
           )}
 
           {activeTab === "character" && (
@@ -150,6 +186,8 @@ function DocumentsPage() {
             <Marksheet student={student} subjects={subjects} totals={totals} />
           ) : activeTab === "idcard" ? (
             <IdCardPreview student={student} photo={idPhoto} />
+          ) : activeTab === "parentcard" ? (
+            <ParentCardPreview student={student} photo={parentPhoto} />
           ) : (
             <CharacterCertificate student={student} />
           )}
@@ -228,6 +266,39 @@ function IdCardPreview({ student, photo }) {
           <span>Code: <strong>{student.studentCode}</strong></span>
           <span>DOB: <strong>{student.dob}</strong></span>
           <span>Mobile: <strong>{student.mobile}</strong></span>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function ParentCardPreview({ student, photo }) {
+  const parentName = student.parentName || student.fatherName || student.motherName || "Parent / Guardian";
+  const parentMobile = student.parentMobile || student.mobile || "-";
+
+  return (
+    <article className="id-card-preview parent-card-preview print-area">
+      <div className="id-card-band parent-card-band">
+        <span>{student.schoolName || "School Name"}</span>
+        <small>Parent / Guardian Card</small>
+      </div>
+      <div className="id-card-body parent-card-body">
+        <div className="parent-card-tag">Authorized Parent</div>
+        <div className="photo-box parent-photo-box">{photo ? <img src={photo} alt="" /> : <span>Photo</span>}</div>
+        <h2>{parentName}</h2>
+        <p>{student.parentRelation || "Parent / Guardian"}</p>
+        <div className="id-card-lines parent-card-lines">
+          <span>Student: <strong>{student.name || "-"}</strong></span>
+          <span>Class: <strong>{student.className || "-"}</strong></span>
+          <span>Roll No: <strong>{student.rollNo || "-"}</strong></span>
+          <span>Student Code: <strong>{student.studentCode || "-"}</strong></span>
+          <span>Mobile: <strong>{parentMobile}</strong></span>
+          <span>Card No: <strong>{student.parentCardNo || "-"}</strong></span>
+          <span>Valid Until: <strong>{student.parentValidUntil || "-"}</strong></span>
+        </div>
+        <div className="parent-card-address">
+          <span>Address</span>
+          <strong>{student.address || "-"}</strong>
         </div>
       </div>
     </article>

@@ -1,8 +1,20 @@
 const express = require("express");
 const Fee = require("../models/Fee");
 const Student = require("../models/Student");
+const auth = require("../middleware/auth");
+const { authorize } = require("../middleware/auth");
+const {
+  assertStudentAccess,
+  canViewAllFees,
+  filterStudentsForUser,
+  handleAccessError,
+} = require("../utils/accessScope");
 
 const router = express.Router();
+const FEE_VIEW_ROLES = ["accountant", "parent", "student"];
+const FEE_MANAGE_ROLES = ["accountant"];
+
+router.use(auth);
 
 const DEFAULT_MONTHS = [
   "April",
@@ -73,6 +85,24 @@ function normalizeMoney(value) {
 function normalizeText(value, fallback = "") {
   const text = String(value || "").trim();
   return text || fallback;
+}
+
+function normalizeKey(value) {
+  return normalizeText(value).toLowerCase();
+}
+
+async function filterFeesForUser(fees, user) {
+  if (canViewAllFees(user)) return fees;
+
+  const visibleStudents = filterStudentsForUser(await Student.find(), user);
+  const visibleStudentIds = new Set(visibleStudents.map((student) => String(student._id || student.id)));
+  const visibleAdmissionNos = new Set(visibleStudents.map((student) => normalizeKey(student.admissionNo)).filter(Boolean));
+
+  return fees.filter((fee) => {
+    const studentId = String(fee.student?._id || fee.student || "");
+    const admissionNo = normalizeKey(fee.admissionNo);
+    return visibleStudentIds.has(studentId) || (admissionNo && visibleAdmissionNos.has(admissionNo));
+  });
 }
 
 function normalizeDate(date) {
@@ -297,9 +327,9 @@ function recomputeTotals(fee, asOf = new Date()) {
 }
 
 // Get all fee plans (admin list)
-router.get("/", async (req, res) => {
+router.get("/", authorize(...FEE_VIEW_ROLES), async (req, res) => {
   try {
-    const fees = await Fee.find().sort({ createdAt: -1 });
+    const fees = await filterFeesForUser(await Fee.find().sort({ createdAt: -1 }), req.user);
     fees.forEach((fee) => recomputeTotals(fee));
     res.json(fees);
   } catch (err) {
@@ -309,9 +339,10 @@ router.get("/", async (req, res) => {
 });
 
 // Get detail for one student + year
-router.get("/student/:studentId/year/:year", async (req, res) => {
+router.get("/student/:studentId/year/:year", authorize(...FEE_VIEW_ROLES), async (req, res) => {
   try {
     const { studentId, year } = req.params;
+    await assertStudentAccess(Student, studentId, req.user, ["accountant"]);
     const fee = await Fee.findOne({
       student: studentId,
       academicYear: year,
@@ -322,27 +353,30 @@ router.get("/student/:studentId/year/:year", async (req, res) => {
     recomputeTotals(fee);
     res.json(fee);
   } catch (err) {
+    if (err.status) return handleAccessError(res, err);
     console.error("Error fetching fee detail", err);
     res.status(500).json({ error: "Failed to fetch fee detail" });
   }
 });
 
 // Get all plans for one student (student app)
-router.get("/student/:studentId", async (req, res) => {
+router.get("/student/:studentId", authorize(...FEE_VIEW_ROLES), async (req, res) => {
   try {
+    await assertStudentAccess(Student, req.params.studentId, req.user, ["accountant"]);
     const fees = await Fee.find({ student: req.params.studentId }).sort({
       academicYear: -1,
     });
     fees.forEach((fee) => recomputeTotals(fee));
     res.json(fees);
   } catch (err) {
+    if (err.status) return handleAccessError(res, err);
     console.error("Error fetching student fees", err);
     res.status(500).json({ error: "Failed to fetch student fees" });
   }
 });
 
 // Create tuition plan (month-wise) for a student+year
-router.post("/create-tuition", async (req, res) => {
+router.post("/create-tuition", authorize(...FEE_MANAGE_ROLES), async (req, res) => {
   try {
     const { studentId, academicYear, monthlyAmount, lateFeeAmount = DEFAULT_LATE_FEE_PER_DAY } = req.body;
 
@@ -426,7 +460,7 @@ router.post("/create-tuition", async (req, res) => {
 });
 
 // Update tuition late fee settings
-router.patch("/:feeId/tuition-late-fee", async (req, res) => {
+router.patch("/:feeId/tuition-late-fee", authorize(...FEE_MANAGE_ROLES), async (req, res) => {
   try {
     const { feeId } = req.params;
     const { itemId, lateFeeAmount = DEFAULT_LATE_FEE_PER_DAY } = req.body;
@@ -465,7 +499,7 @@ router.patch("/:feeId/tuition-late-fee", async (req, res) => {
 });
 
 // Add other fee (exam/activity/other)
-router.post("/add-item", async (req, res) => {
+router.post("/add-item", authorize(...FEE_MANAGE_ROLES), async (req, res) => {
   try {
     const {
       studentId,
@@ -551,7 +585,7 @@ router.post("/add-item", async (req, res) => {
 });
 
 // Toggle tuition month paid/pending (with optional paidDate)
-router.patch("/:feeId/toggle-month", async (req, res) => {
+router.patch("/:feeId/toggle-month", authorize(...FEE_MANAGE_ROLES), async (req, res) => {
   try {
     const { feeId } = req.params;
     const { itemId, monthName, paidDate, paymentMode = "Cash" } = req.body;
@@ -595,7 +629,7 @@ router.patch("/:feeId/toggle-month", async (req, res) => {
 });
 
 // Record tuition month payment with support for partial payment, concession and mode.
-router.patch("/:feeId/month-payment", async (req, res) => {
+router.patch("/:feeId/month-payment", authorize(...FEE_MANAGE_ROLES), async (req, res) => {
   try {
     const { feeId } = req.params;
     const { itemId, monthName, concessionAmount } = req.body;
@@ -626,7 +660,7 @@ router.patch("/:feeId/month-payment", async (req, res) => {
 });
 
 // Toggle one-time item paid/pending (with optional paidDate)
-router.patch("/:feeId/toggle-item", async (req, res) => {
+router.patch("/:feeId/toggle-item", authorize(...FEE_MANAGE_ROLES), async (req, res) => {
   try {
     const { feeId } = req.params;
     const { itemId, paidDate, paymentMode = "Cash" } = req.body;
@@ -668,7 +702,7 @@ router.patch("/:feeId/toggle-item", async (req, res) => {
 });
 
 // Record one-time fee payment with support for partial payment, concession and mode.
-router.patch("/:feeId/item-payment", async (req, res) => {
+router.patch("/:feeId/item-payment", authorize(...FEE_MANAGE_ROLES), async (req, res) => {
   try {
     const { feeId } = req.params;
     const { itemId, concessionAmount } = req.body;
@@ -696,7 +730,7 @@ router.patch("/:feeId/item-payment", async (req, res) => {
 });
 
 // Delete entire plan (reset)
-router.delete("/:feeId", async (req, res) => {
+router.delete("/:feeId", authorize("superadmin"), async (req, res) => {
   try {
     await Fee.findByIdAndDelete(req.params.feeId);
     res.json({ success: true });

@@ -49,7 +49,7 @@ const navGroups = [
     label: "Operations",
     items: [
       { to: "/", label: "Dashboard", icon: Home, roles: ["superadmin", "admin", "teacher", "student", "parent", "accountant", "librarian", "staff"] },
-      { to: "/students", label: "Students", icon: GraduationCap, roles: ["superadmin", "teacher"] },
+      { to: "/students", label: "Students", icon: GraduationCap, roles: ["superadmin", "admin", "teacher"] },
       { to: "/classes", label: "Classes", icon: BookOpen, roles: ["superadmin", "admin", "teacher"] },
       { to: "/teacher", label: "Teacher Desk", icon: BookOpenCheck, roles: ["teacher"] },
       { to: "/attendance", label: "Attendance", icon: CalendarCheck, roles: ["superadmin", "admin", "teacher", "student", "parent"] },
@@ -66,7 +66,7 @@ const navGroups = [
   {
     label: "Finance & People",
     items: [
-      { to: "/fees", label: "Fees", icon: CircleDollarSign, roles: ["superadmin", "accountant", "parent"] },
+      { to: "/fees", label: "Fees", icon: CircleDollarSign, roles: ["superadmin", "accountant", "parent", "student"] },
       { to: "/fees/collections", label: "Collections", icon: ReceiptText, roles: ["superadmin", "accountant"] },
       { to: "/modules/staff", label: "Staff & Payroll", icon: Users, roles: ["superadmin", "accountant", "teacher"] },
       { to: "/modules/exams", label: "Exams & Results", icon: ShieldCheck, roles: ["superadmin", "teacher", "student", "parent"] },

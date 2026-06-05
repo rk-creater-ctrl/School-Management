@@ -3010,6 +3010,75 @@ option {
   padding-bottom: 8px;
   border-bottom: 1px solid #e2e8f0;
 }
+.parent-card-preview {
+  width: 390px;
+  min-height: 610px;
+}
+.parent-card-band {
+  min-height: 92px;
+  align-content: center;
+  gap: 4px;
+  background: #1e3a5f;
+}
+.parent-card-band span,
+.parent-card-band small {
+  display: block;
+}
+.parent-card-band small {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #facc15;
+}
+.parent-card-body {
+  gap: 9px;
+  padding: 22px 24px 24px;
+}
+.parent-card-tag {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  color: #1e3a5f;
+  background: #fef3c7;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.parent-photo-box {
+  width: 132px;
+  height: 142px;
+  border-color: #1e3a5f;
+}
+.parent-card-lines {
+  margin-top: 6px;
+}
+.parent-card-lines span strong {
+  text-align: right;
+}
+.parent-card-address {
+  width: 100%;
+  display: grid;
+  gap: 4px;
+  margin-top: 2px;
+  padding: 10px;
+  border: 1px solid #dbe4ee;
+  border-radius: 8px;
+  text-align: left;
+  background: #f8fafc;
+}
+.parent-card-address span {
+  color: #64748b;
+  font-size: 12px;
+}
+.parent-card-address strong {
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 1.4;
+}
 .filter-strip {
   display: flex;
   gap: 8px;
@@ -3336,6 +3405,15 @@ td { color: var(--text); }
   .audit-filters, .audit-filters select { width: 100%; }
   .subject-row { grid-template-columns: 1fr; }
   .document-preview { padding: 12px; }
+}
+
+.auth-checking {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  color: var(--text);
+  font-weight: 700;
 }
 
 @media print {

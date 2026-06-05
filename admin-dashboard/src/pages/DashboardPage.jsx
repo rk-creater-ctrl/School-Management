@@ -17,7 +17,7 @@ import { canUseRole, getStoredUser } from "../permissions";
 
 const commandActions = [
   { label: "Staff", path: "/staff", icon: Users, roles: ["superadmin", "admin", "accountant"] },
-  { label: "Student", path: "/students", icon: GraduationCap, roles: ["superadmin", "teacher"] },
+  { label: "Student", path: "/students", icon: GraduationCap, roles: ["superadmin", "admin", "teacher"] },
   { label: "Website Leads", path: "/website-leads", icon: Globe2, roles: ["superadmin", "admin", "staff"] },
   { label: "Collections", path: "/fees/collections", icon: ReceiptText, roles: ["superadmin", "accountant"] },
   { label: "Transport", path: "/modules/transport", icon: Bus, roles: ["superadmin", "admin", "accountant", "staff"] },
@@ -66,7 +66,7 @@ function DashboardPage() {
     { label: "Students", value: studentsCount.toLocaleString(), delta: "Active", icon: GraduationCap, tone: "blue" },
     { label: "Classes", value: classesCount.toLocaleString(), delta: "Running", icon: Users, tone: "green" },
     { label: "Attendance", value: `${campusHealth}%`, delta: "Average", icon: CheckCircle2, tone: "amber" },
-    ...(canUseRole(["superadmin", "accountant", "parent"], { role: currentRole })
+    ...(canUseRole(["superadmin", "accountant", "parent", "student"], { role: currentRole })
       ? [{ label: "Fees", value: formatCurrency(revenueTotal), delta: `${analytics?.totals?.feePlans || 0} plans`, icon: CircleDollarSign, tone: "rose" }]
       : []),
   ];
@@ -119,7 +119,7 @@ function DashboardPage() {
         {attendanceSeries.some(Boolean) ? <LineChart data={attendanceSeries} color="#22c55e" suffix="%" /> : <EmptyState text="No attendance records." />}
       </section>
 
-      {canUseRole(["superadmin", "accountant", "parent"], currentUser) && (
+      {canUseRole(["superadmin", "accountant", "parent", "student"], currentUser) && (
         <section className="chart-card">
           <div className="section-heading">
             <div>

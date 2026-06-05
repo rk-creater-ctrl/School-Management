@@ -1,20 +1,40 @@
 const express = require("express");
 const ClassNotice = require("../models/ClassNotice");
+const Student = require("../models/Student");
 const auth = require("../middleware/auth");
 const { authorize } = require("../middleware/auth");
+const { filterStudentsForUser, getRole } = require("../utils/accessScope");
 
 const router = express.Router();
 
 const GLOBAL_CLASS_NAME = "__GLOBAL__";
+const NOTICE_VIEW_ROLES = ["admin", "teacher", "staff", "student", "parent"];
+
+function isFamilyRole(user) {
+  return ["parent", "student"].includes(getRole(user));
+}
+
+async function getVisibleClassNames(user) {
+  if (!isFamilyRole(user)) return null;
+  const students = filterStudentsForUser(await Student.find(), user);
+  return new Set(students.map((student) => student.className).filter(Boolean));
+}
 
 // GET /api/class-notices?className=10th&date=YYYY-MM-DD
-router.get("/", async (req, res) => {
+router.get("/", auth, authorize(...NOTICE_VIEW_ROLES), async (req, res) => {
   try {
     const { className, date } = req.query;
+    const visibleClassNames = await getVisibleClassNames(req.user);
 
-    const filter = className
-      ? { className: { $in: [className, GLOBAL_CLASS_NAME] } }
-      : {};
+    let filter = {};
+    if (visibleClassNames) {
+      const allowedClasses = [GLOBAL_CLASS_NAME, ...visibleClassNames];
+      filter = className && visibleClassNames.has(className)
+        ? { className: { $in: [className, GLOBAL_CLASS_NAME] } }
+        : { className: { $in: allowedClasses } };
+    } else if (className) {
+      filter = { className: { $in: [className, GLOBAL_CLASS_NAME] } };
+    }
 
     if (date) {
       const day = new Date(date);

@@ -1,9 +1,22 @@
 const express = require("express");
 const Homework = require("../models/Homework");
+const Student = require("../models/Student");
 const auth = require("../middleware/auth");
 const { authorize } = require("../middleware/auth");
+const { filterStudentsForUser, getRole } = require("../utils/accessScope");
 
 const router = express.Router();
+const HOMEWORK_VIEW_ROLES = ["admin", "teacher", "student", "parent"];
+
+function isFamilyRole(user) {
+  return ["parent", "student"].includes(getRole(user));
+}
+
+async function canOpenClass(user, className) {
+  if (!isFamilyRole(user)) return true;
+  const students = filterStudentsForUser(await Student.find(), user);
+  return students.some((student) => student.className === className);
+}
 
 function normalizeDate(d) {
   const dt = new Date(d);
@@ -12,11 +25,14 @@ function normalizeDate(d) {
 }
 
 // GET /api/homework?className=10th&date=YYYY-MM-DD
-router.get("/", async (req, res) => {
+router.get("/", auth, authorize(...HOMEWORK_VIEW_ROLES), async (req, res) => {
   try {
     const { className, date } = req.query;
     if (!className) {
       return res.status(400).json({ error: "className is required" });
+    }
+    if (!(await canOpenClass(req.user, className))) {
+      return res.status(403).json({ error: "You do not have permission to open this class homework" });
     }
 
     const filter = { className };

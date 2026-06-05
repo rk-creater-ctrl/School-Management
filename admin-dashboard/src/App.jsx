@@ -1,5 +1,5 @@
 // import "./App.css";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Routes, Route, Navigate, useParams } from "react-router-dom";
 import Layout from "./components/Layout";
 import DashboardPage from "./pages/DashboardPage";
@@ -31,9 +31,10 @@ import TransportPage from "./pages/TransportPage";
 import TransportStudentRecordPage from "./pages/TransportStudentRecordPage";
 import TransportVehicleDetailPage from "./pages/TransportVehicleDetailPage";
 import WebsiteLeadsPage from "./pages/WebsiteLeadsPage";
-import { erpAPI } from "./api";
+import { authAPI, erpAPI } from "./api";
 import { allRoles, canUseRole, getStoredUser, hasSession, moduleRoles } from "./permissions";
 import { applySchoolBranding } from "./utils/branding";
+import { clearActiveSession, updateActiveUser } from "./utils/session";
 
 function App() {
   useEffect(() => {
@@ -68,9 +69,9 @@ function App() {
         <Route path="/classes/:id/edit" element={<RequireRole roles={["superadmin", "teacher"]}><ClassFormPage /></RequireRole>} />
         <Route path="/classes/:id" element={<RequireRole roles={["superadmin", "admin", "teacher"]}><ClassDetailPage /></RequireRole>} />
         <Route path="/teacher/*" element={<RequireRole roles={["teacher"]}><TeacherWorkspacePage /></RequireRole>} />
-        <Route path="fees" element={<RequireRole roles={["superadmin", "accountant", "parent"]}><FeesPage /></RequireRole>} />
+        <Route path="fees" element={<RequireRole roles={["superadmin", "accountant", "parent", "student"]}><FeesPage /></RequireRole>} />
         <Route path="fees/collections" element={<RequireRole roles={["superadmin", "accountant"]}><FeeCollectionsPage /></RequireRole>} />
-        <Route path="fees/:studentId/:year" element={<RequireRole roles={["superadmin", "accountant", "parent"]}><FeeDetailPage /></RequireRole>} />
+        <Route path="fees/:studentId/:year" element={<RequireRole roles={["superadmin", "accountant", "parent", "student"]}><FeeDetailPage /></RequireRole>} />
         <Route path="attendance" element={<RequireRole roles={["superadmin", "admin", "teacher", "student", "parent"]}><AttendancePage /></RequireRole>} />
         <Route path="attendance/:studentId" element={<RequireRole roles={["superadmin", "admin", "teacher", "student", "parent"]}><AttendanceDetailPage /></RequireRole>} />
         <Route path="staff" element={<RequireRole roles={["superadmin", "admin", "accountant"]}><StaffDirectoryPage /></RequireRole>} />
@@ -95,7 +96,38 @@ function App() {
 }
 
 function RequireAuth({ children }) {
-  if (!hasSession()) return <Navigate to="/login" replace />;
+  const [status, setStatus] = useState(() => (hasSession() ? "checking" : "signed-out"));
+
+  useEffect(() => {
+    let active = true;
+
+    if (!hasSession()) {
+      setStatus("signed-out");
+      return () => {
+        active = false;
+      };
+    }
+
+    authAPI
+      .me()
+      .then((res) => {
+        if (!active) return;
+        updateActiveUser(res.data.user);
+        setStatus("signed-in");
+      })
+      .catch(() => {
+        if (!active) return;
+        clearActiveSession();
+        setStatus("signed-out");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (status === "signed-out") return <Navigate to="/login" replace />;
+  if (status === "checking") return <div className="auth-checking">Checking session...</div>;
   return children;
 }
 

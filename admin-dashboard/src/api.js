@@ -3,7 +3,7 @@ import axios from "axios";
 import { getAuthToken } from "./utils/session";
 
 const api = axios.create({
-  baseURL: "/api", // or "http://localhost:5000/api" if you don't use Vite proxy
+  baseURL: import.meta.env.VITE_API_BASE_URL || "/api",
 });
 
 api.interceptors.request.use((config) => {

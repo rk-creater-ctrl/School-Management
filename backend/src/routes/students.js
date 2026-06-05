@@ -1,17 +1,28 @@
 // backend/src/routes/students.js
 const express = require("express");
 const Student = require("../models/Student");
+const auth = require("../middleware/auth");
+const { authorize } = require("../middleware/auth");
+const {
+  assertStudentAccess,
+  filterStudentsForUser,
+  handleAccessError,
+} = require("../utils/accessScope");
 
 const router = express.Router();
+const STUDENT_READ_ROLES = ["admin", "teacher", "accountant", "staff", "student", "parent"];
+const STUDENT_ALL_ACCESS_ROLES = ["admin", "teacher", "accountant", "staff"];
+
+router.use(auth);
 
 // GET /api/students - list all students
-router.get("/", async (req, res) => {
+router.get("/", authorize(...STUDENT_READ_ROLES), async (req, res) => {
   try {
     const students = await Student.find().sort({
       className: 1,
       admissionNo: 1,
     });
-    res.json(students);
+    res.json(filterStudentsForUser(students, req.user));
   } catch (err) {
     console.error("Error fetching students", err);
     res.status(500).json({ error: "Failed to fetch students" });
@@ -19,10 +30,11 @@ router.get("/", async (req, res) => {
 });
 
 // GET /api/students/classes/distinct - list distinct className values
-router.get("/classes/distinct", async (req, res) => {
+router.get("/classes/distinct", authorize(...STUDENT_READ_ROLES), async (req, res) => {
   try {
-    const classes = await Student.distinct("className");
-    classes.sort();
+    const students = filterStudentsForUser(await Student.find(), req.user);
+    const classes = [...new Set(students.map((student) => student.className).filter(Boolean))];
+    classes.sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" }));
     res.json(classes);
   } catch (err) {
     console.error("Error fetching distinct classes", err);
@@ -31,19 +43,19 @@ router.get("/classes/distinct", async (req, res) => {
 });
 
 // GET /api/students/:id - get single student
-router.get("/:id", async (req, res) => {
+router.get("/:id", authorize(...STUDENT_READ_ROLES), async (req, res) => {
   try {
-    const student = await Student.findById(req.params.id);
-    if (!student) return res.status(404).json({ error: "Student not found" });
+    const student = await assertStudentAccess(Student, req.params.id, req.user, STUDENT_ALL_ACCESS_ROLES);
     res.json(student);
   } catch (err) {
+    if (err.status) return handleAccessError(res, err);
     console.error("Error fetching student", err);
     res.status(500).json({ error: "Failed to fetch student" });
   }
 });
 
 // POST /api/students - create
-router.post("/", async (req, res) => {
+router.post("/", authorize("superadmin"), async (req, res) => {
   try {
     console.log("POST /api/students body:", req.body);
 
@@ -81,7 +93,7 @@ router.post("/", async (req, res) => {
 });
 
 // PUT /api/students/:id - update
-router.put("/:id", async (req, res) => {
+router.put("/:id", authorize("superadmin"), async (req, res) => {
   try {
     console.log("PUT /api/students/:id body:", req.body);
 
@@ -122,7 +134,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // DELETE /api/students/:id - delete
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", authorize("superadmin"), async (req, res) => {
   try {
     const student = await Student.findByIdAndDelete(req.params.id);
     if (!student) return res.status(404).json({ error: "Student not found" });

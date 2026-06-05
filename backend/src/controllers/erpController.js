@@ -7,6 +7,7 @@ const TeacherProfile = require('../models/TeacherProfile');
 const Fee = require('../models/Fee');
 const Attendance = require('../models/Attendance');
 const { writeActivity } = require('../utils/audit');
+const { filterStudentsForUser, getRole } = require('../utils/accessScope');
 
 const modulePermissions = {
   admissions: ['staff'],
@@ -41,6 +42,26 @@ function canWrite(user, module) {
 
 function scopedQuery(user, extra = {}) {
   return extra;
+}
+
+function isFamilyRole(user) {
+  return ['parent', 'student'].includes(getRole(user));
+}
+
+function getRecordStudentId(record) {
+  return String(record?.student?._id || record?.student || record?.studentId || '');
+}
+
+function getRecordAdmissionNo(record) {
+  return String(record?.admissionNo || record?.studentAdmissionNo || '').trim().toLowerCase();
+}
+
+function filterRecordsByStudents(records, visibleStudentIds, visibleAdmissionNos) {
+  return records.filter((record) => {
+    const studentId = getRecordStudentId(record);
+    const admissionNo = getRecordAdmissionNo(record);
+    return visibleStudentIds.has(studentId) || (admissionNo && visibleAdmissionNos.has(admissionNo));
+  });
 }
 
 function monthLabels() {
@@ -124,13 +145,12 @@ function addTeacherCountToModules(moduleCounts, teacherCount) {
 
 exports.analytics = async (req, res) => {
   try {
-    const [students, teachers, feePlans, attendanceRecords, fees, attendance, activities, notifications, moduleCounts] = await Promise.all([
-      Student.countDocuments(scopedQuery(req.user)),
+    const familyRole = isFamilyRole(req.user);
+    const [allStudents, teachers, allFees, allAttendance, activities, notifications, moduleCounts] = await Promise.all([
+      Student.find(scopedQuery(req.user)).lean(),
       User.countDocuments(scopedQuery(req.user, { role: 'teacher' })),
-      Fee.countDocuments(scopedQuery(req.user)),
-      Attendance.countDocuments(scopedQuery(req.user)),
-      Fee.find(scopedQuery(req.user)).select('totalFee paidAmount dueAmount createdAt').lean(),
-      Attendance.find(scopedQuery(req.user)).select('date status').lean(),
+      Fee.find(scopedQuery(req.user)).select('student admissionNo totalFee paidAmount dueAmount createdAt').lean(),
+      Attendance.find(scopedQuery(req.user)).select('student studentId admissionNo date status').lean(),
       ActivityLog.find(scopedQuery(req.user)).sort({ createdAt: -1 }).limit(10).lean(),
       Notification.find(scopedQuery(req.user)).sort({ createdAt: -1 }).limit(10).lean(),
       ModuleRecord.aggregate([
@@ -138,6 +158,15 @@ exports.analytics = async (req, res) => {
         { $group: { _id: '$module', count: { $sum: 1 }, pending: { $sum: { $cond: [{ $regexMatch: { input: '$status', regex: /pending/i } }, 1, 0] } } } },
       ]),
     ]);
+    const visibleStudents = filterStudentsForUser(allStudents, req.user);
+    const visibleStudentIds = new Set(visibleStudents.map((student) => String(student._id || student.id)));
+    const visibleAdmissionNos = new Set(visibleStudents.map((student) => String(student.admissionNo || '').trim().toLowerCase()).filter(Boolean));
+    const fees = familyRole ? filterRecordsByStudents(allFees, visibleStudentIds, visibleAdmissionNos) : allFees;
+    const attendance = familyRole ? filterRecordsByStudents(allAttendance, visibleStudentIds, visibleAdmissionNos) : allAttendance;
+    const safeActivities = familyRole ? [] : activities;
+    const safeNotifications = familyRole ? [] : notifications;
+    const safeModuleCounts = familyRole ? [] : moduleCounts;
+    const teacherCount = familyRole ? 0 : teachers;
 
     const feeTotals = fees.reduce(
       (totals, fee) => ({
@@ -166,10 +195,10 @@ exports.analytics = async (req, res) => {
 
     res.json({
       totals: {
-        students,
-        teachers,
-        feePlans,
-        attendanceRecords,
+        students: visibleStudents.length,
+        teachers: teacherCount,
+        feePlans: fees.length,
+        attendanceRecords: attendance.length,
         classes: 0,
         ...feeTotals,
       },
@@ -177,9 +206,9 @@ exports.analytics = async (req, res) => {
         attendance: attendanceByMonth,
         revenue: revenueByMonth,
       },
-      activities,
-      notifications,
-      modules: addTeacherCountToModules(moduleCounts, teachers),
+      activities: safeActivities,
+      notifications: safeNotifications,
+      modules: addTeacherCountToModules(safeModuleCounts, teacherCount),
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

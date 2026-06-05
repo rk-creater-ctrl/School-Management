@@ -92,7 +92,14 @@ function LoginPage() {
           <span>Username or Email</span>
           <div className="input-with-icon">
             <Mail size={17} />
-            <input value={form.identifier} onChange={(event) => updateForm("identifier", event.target.value)} required />
+            <input
+              id="login-identifier"
+              name="username"
+              autoComplete="username"
+              value={form.identifier}
+              onChange={(event) => updateForm("identifier", event.target.value)}
+              required
+            />
           </div>
         </label>
 
@@ -100,7 +107,15 @@ function LoginPage() {
           <span>Password</span>
           <div className="input-with-icon">
             <LockKeyhole size={17} />
-            <input type={showPassword ? "text" : "password"} value={form.password} onChange={(event) => updateForm("password", event.target.value)} required />
+            <input
+              id="login-password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              value={form.password}
+              onChange={(event) => updateForm("password", event.target.value)}
+              required
+            />
             <button className="field-icon-button" type="button" onClick={() => setShowPassword((value) => !value)} aria-label="Toggle password visibility">
               {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
             </button>

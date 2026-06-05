@@ -5,6 +5,7 @@ import { studentsAPI, feesAPI } from "../api";
 import { Link } from "react-router-dom";
 import AcademicYearSelect from "../components/AcademicYearSelect";
 import { getCurrentAcademicYear } from "../utils/academicYear";
+import { getStoredUser } from "../permissions";
 
 function FeesPage() {
   const [students, setStudents] = useState([]);
@@ -15,6 +16,8 @@ function FeesPage() {
   const [search, setSearch] = useState("");
   const [selectedClass, setSelectedClass] = useState("all");
   const [activeYear, setActiveYear] = useState(getCurrentAcademicYear());
+  const currentRole = getStoredUser()?.role;
+  const canOpenCollections = ["superadmin", "accountant"].includes(currentRole);
 
   useEffect(() => {
     loadData();
@@ -166,9 +169,11 @@ function FeesPage() {
             />
           </div>
         </div>
-        <Link className="secondary-button" to="/fees/collections" style={{ textDecoration: "none" }}>
-          Collections
-        </Link>
+        {canOpenCollections && (
+          <Link className="secondary-button" to="/fees/collections" style={{ textDecoration: "none" }}>
+            Collections
+          </Link>
+        )}
       </section>
 
       {/* table */}

@@ -2,9 +2,13 @@ import { authAPI } from "../api";
 import { getStoredUser } from "../permissions";
 
 export async function requireSuperadminPassword(actionLabel = "continue") {
+  return requireRolePassword(actionLabel, ["superadmin", "admin"]);
+}
+
+export async function requireRolePassword(actionLabel = "continue", allowedRoles = ["superadmin", "admin"]) {
   const user = getStoredUser();
-  if (!["superadmin", "admin"].includes(user?.role)) {
-    alert("Only admin or superadmin can perform this action.");
+  if (!allowedRoles.includes(user?.role)) {
+    alert(`Only ${allowedRoles.join(" or ")} can perform this action.`);
     return false;
   }
 
@@ -15,7 +19,7 @@ export async function requireSuperadminPassword(actionLabel = "continue") {
     await authAPI.confirmPassword(password);
     return true;
   } catch (error) {
-    alert(error.response?.data?.error || "Invalid admin password.");
+    alert(error.response?.data?.error || "Invalid password.");
     return false;
   }
 }

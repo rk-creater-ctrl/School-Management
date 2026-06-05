@@ -17,6 +17,7 @@ function UserManagementPage() {
     username: "",
     email: "",
     phone: "",
+    studentAdmissionNo: "",
     role: "student",
     status: "active",
     password: "",
@@ -28,6 +29,7 @@ function UserManagementPage() {
     email: "",
     phone: "",
     password: "",
+    studentAdmissionNo: "",
     role: allowedRoles[0],
   });
 
@@ -65,6 +67,7 @@ function UserManagementPage() {
       username: user.username || "",
       email: user.email || "",
       phone: user.phone || "",
+      studentAdmissionNo: user.studentAdmissionNo || user.linkedStudentAdmissionNo || "",
       role: user.role || "student",
       status: user.status || "active",
       password: "",
@@ -85,7 +88,7 @@ function UserManagementPage() {
         username: form.username.toLowerCase().replace(/\s/g, ""),
       };
       await authAPI.createUser(payload);
-      setForm({ name: "", username: "", email: "", phone: "", password: "", role: allowedRoles[0] });
+      setForm({ name: "", username: "", email: "", phone: "", password: "", studentAdmissionNo: "", role: allowedRoles[0] });
       setStatus("User account created.");
       await loadUsers();
     } catch (error) {
@@ -117,6 +120,7 @@ function UserManagementPage() {
         username: editForm.username.toLowerCase().replace(/\s/g, ""),
         email: editForm.email,
         phone: editForm.phone,
+        studentAdmissionNo: editForm.studentAdmissionNo,
         role: editForm.role,
         status: editForm.status,
       };
@@ -161,9 +165,10 @@ function UserManagementPage() {
             <Field label="Email" type="email" value={form.email} onChange={(value) => updateForm("email", value)} required />
             <Field label="Mobile" value={form.phone} onChange={(value) => updateForm("phone", value.replace(/\D/g, "").slice(0, 10))} />
             <Field label="Password" type="password" value={form.password} onChange={(value) => updateForm("password", value)} required />
+            <Field label="Linked admission no" value={form.studentAdmissionNo} onChange={(value) => updateForm("studentAdmissionNo", value)} />
             <label className="field">
               <span>Role</span>
-              <select value={form.role} onChange={(event) => updateForm("role", event.target.value)} disabled={!isSuperadmin}>
+              <select value={form.role} onChange={(event) => updateForm("role", event.target.value)}>
                 {allowedRoles.map((role) => <option key={role}>{role}</option>)}
               </select>
             </label>
@@ -189,6 +194,7 @@ function UserManagementPage() {
                     <div>
                       <strong>{user.name}</strong>
                       <span>{user.username || user.email}</span>
+                      {(user.studentAdmissionNo || user.linkedStudentAdmissionNo) && <span>Linked: {user.studentAdmissionNo || user.linkedStudentAdmissionNo}</span>}
                     </div>
                     <small>{user.status || "active"}</small>
                     {isSuperadmin && (
@@ -228,6 +234,7 @@ function UserManagementPage() {
               <Field label="Username" value={editForm.username} onChange={(value) => updateEditForm("username", value.toLowerCase().replace(/\s/g, ""))} required />
               <Field label="Email" type="email" value={editForm.email} onChange={(value) => updateEditForm("email", value)} required />
               <Field label="Mobile" value={editForm.phone} onChange={(value) => updateEditForm("phone", value.replace(/\D/g, "").slice(0, 10))} />
+              <Field label="Linked admission no" value={editForm.studentAdmissionNo} onChange={(value) => updateEditForm("studentAdmissionNo", value)} />
               <label className="field">
                 <span>Role</span>
                 <select value={editForm.role} onChange={(event) => updateEditForm("role", event.target.value)}>

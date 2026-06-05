@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { studentsAPI, attendanceAPI } from "../api";
 import { Link, useSearchParams } from "react-router-dom";
 import { getAcademicYearOptions, getCurrentAcademicYearStart } from "../utils/academicYear";
+import { getStoredUser } from "../permissions";
 
 function AttendancePage() {
   const [searchParams] = useSearchParams();
@@ -22,6 +23,8 @@ function AttendancePage() {
   const [deviceCode, setDeviceCode] = useState("");
   const [deviceMessage, setDeviceMessage] = useState("");
   const [markDate, setMarkDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const currentRole = getStoredUser()?.role;
+  const canManageAttendance = ["superadmin", "admin", "teacher"].includes(currentRole);
 
   useEffect(() => {
     loadBaseData();
@@ -156,26 +159,28 @@ function AttendancePage() {
         </div>
       )}
 
-      <section className="module-board" style={{ marginBottom: 16 }}>
-        <div className="section-heading">
-          <div>
-            <span className="eyebrow">Face detection sync</span>
-            <h3>Student code attendance</h3>
+      {canManageAttendance && (
+        <section className="module-board" style={{ marginBottom: 16 }}>
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">Face detection sync</span>
+              <h3>Student code attendance</h3>
+            </div>
           </div>
-        </div>
-        <form className="form-grid" onSubmit={markFromFaceDevice}>
-          <label className="field">
-            <span>10 digit student code</span>
-            <input value={deviceCode} onChange={(event) => setDeviceCode(event.target.value.replace(/\D/g, "").slice(0, 10))} placeholder="1023456789" inputMode="numeric" />
-          </label>
-          <label className="field">
-            <span>Date</span>
-            <input type="date" value={markDate} onChange={(event) => setMarkDate(event.target.value)} />
-          </label>
-          <button className="primary-button" type="submit">Mark Present</button>
-        </form>
-        {deviceMessage && <p className="inline-success" style={{ marginTop: 12 }}>{deviceMessage}</p>}
-      </section>
+          <form className="form-grid" onSubmit={markFromFaceDevice}>
+            <label className="field">
+              <span>10 digit student code</span>
+              <input value={deviceCode} onChange={(event) => setDeviceCode(event.target.value.replace(/\D/g, "").slice(0, 10))} placeholder="1023456789" inputMode="numeric" />
+            </label>
+            <label className="field">
+              <span>Date</span>
+              <input type="date" value={markDate} onChange={(event) => setMarkDate(event.target.value)} />
+            </label>
+            <button className="primary-button" type="submit">Mark Present</button>
+          </form>
+          {deviceMessage && <p className="inline-success" style={{ marginTop: 12 }}>{deviceMessage}</p>}
+        </section>
+      )}
 
       {/* Filters */}
       <section
@@ -383,7 +388,7 @@ function AttendancePage() {
                                 "0 10px 25px rgba(37,99,235,0.5)",
                             }}
                           >
-                            Mark / View
+                            {canManageAttendance ? "Mark / View" : "View"}
                           </Link>
                         </Td>
                       </tr>

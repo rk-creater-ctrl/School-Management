@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams, Link } from "react-router-dom";
 import { attendanceAPI } from "../api";
+import { getStoredUser } from "../permissions";
 
 function useQuery() {
   const { search } = useLocation();
@@ -26,6 +27,8 @@ function AttendanceDetailPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const currentRole = getStoredUser()?.role;
+  const canManageAttendance = ["superadmin", "admin", "teacher"].includes(currentRole);
 
   useEffect(() => {
     loadData();
@@ -55,6 +58,7 @@ function AttendanceDetailPage() {
   }
 
   function updateDayStatus(dayNumber, status) {
+    if (!canManageAttendance) return;
     setDays((prev) =>
       prev.map((d) =>
         d.day === dayNumber
@@ -251,23 +255,25 @@ function AttendanceDetailPage() {
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving}
-          style={{
-            background: saving ? "#93c5fd" : "#2563eb",
-            border: "none",
-            color: "white",
-            padding: "8px 18px",
-            borderRadius: "999px",
-            cursor: "pointer",
-            fontSize: "13px",
-            fontWeight: 600,
-          }}
-        >
-          {saving ? "Saving..." : "Save changes"}
-        </button>
+        {canManageAttendance && (
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            style={{
+              background: saving ? "#93c5fd" : "#2563eb",
+              border: "none",
+              color: "white",
+              padding: "8px 18px",
+              borderRadius: "999px",
+              cursor: "pointer",
+              fontSize: "13px",
+              fontWeight: 600,
+            }}
+          >
+            {saving ? "Saving..." : "Save changes"}
+          </button>
+        )}
       </section>
 
       {/* Register table */}
@@ -310,6 +316,7 @@ function AttendanceDetailPage() {
                   <Td>
                     <StatusSelector
                       name={`status-${d.day}`}
+                      readOnly={!canManageAttendance}
                       value={d.status}
                       onChange={(val) => updateDayStatus(d.day, val)}
                     />
@@ -324,7 +331,9 @@ function AttendanceDetailPage() {
   );
 }
 
-function StatusSelector({ value, onChange, name }) {
+function StatusSelector({ value, onChange, name, readOnly }) {
+  if (readOnly) return <span>{value}</span>;
+
   const options = [
     { value: "Present", label: "P" },
     { value: "Absent", label: "A" },

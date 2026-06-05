@@ -1,5 +1,4 @@
 const express = require("express");
-const mongoose = require("mongoose");
 const TeacherProfile = require("../models/TeacherProfile");
 const TeacherClassRecord = require("../models/TeacherClassRecord");
 const TeacherAnnouncement = require("../models/TeacherAnnouncement");
@@ -53,8 +52,8 @@ function cleanSchedule(values) {
 function cleanObjectIds(values) {
   if (!Array.isArray(values)) return [];
   return [...new Set(values.map(String))]
-    .filter((id) => mongoose.Types.ObjectId.isValid(id))
-    .map((id) => new mongoose.Types.ObjectId(id));
+    .map(cleanString)
+    .filter((id) => /^[a-z0-9-]{8,}$/i.test(id));
 }
 
 function cleanCopyNaRecords(values) {

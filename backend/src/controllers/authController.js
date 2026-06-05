@@ -12,12 +12,18 @@ function signToken(user) {
 
 function publicUser(user) {
   return {
+    _id: user._id,
     id: user._id,
     name: user.name,
     username: user.username,
     email: user.email,
     phone: user.phone,
     role: user.role,
+    status: user.status,
+    studentId: user.studentId,
+    linkedStudentId: user.linkedStudentId,
+    studentAdmissionNo: user.studentAdmissionNo,
+    linkedStudentAdmissionNo: user.linkedStudentAdmissionNo,
     isEmailVerified: user.isEmailVerified,
   };
 }
@@ -120,13 +126,10 @@ exports.confirmPassword = async (req, res) => {
   try {
     const { password } = req.body;
     if (!password) return res.status(400).json({ error: 'Password is required' });
-    if (!['superadmin', 'admin'].includes(req.user.role)) {
-      return res.status(403).json({ error: 'Admin password required' });
-    }
 
     const user = await User.findById(req.user._id).select('+password');
     if (!user || !(await user.comparePassword(password))) {
-      return res.status(401).json({ error: 'Invalid admin password' });
+      return res.status(401).json({ error: 'Invalid password' });
     }
 
     res.json({ success: true });
@@ -148,7 +151,17 @@ exports.listUsers = async (req, res) => {
 exports.createUser = async (req, res) => {
   try {
     const requestedRole = req.body.role;
-    const { name, username, email, password, phone } = req.body;
+    const {
+      name,
+      username,
+      email,
+      password,
+      phone,
+      studentId,
+      linkedStudentId,
+      studentAdmissionNo,
+      linkedStudentAdmissionNo,
+    } = req.body;
     const role = requestedRole || 'student';
 
     if (req.user.role === 'admin' && !['student', 'teacher'].includes(role)) {
@@ -163,7 +176,18 @@ exports.createUser = async (req, res) => {
     });
     if (existingUser) return res.status(400).json({ error: 'User already exists' });
 
-    const user = new User({ name, username, email, password, phone, role });
+    const user = new User({
+      name,
+      username,
+      email,
+      password,
+      phone,
+      role,
+      studentId,
+      linkedStudentId,
+      studentAdmissionNo,
+      linkedStudentAdmissionNo,
+    });
     await user.save();
     res.status(201).json(publicUser(user));
   } catch (error) {
@@ -184,7 +208,18 @@ exports.updateUser = async (req, res) => {
     const user = await User.findById(req.params.id).select('+password');
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    const allowed = ['name', 'username', 'email', 'phone', 'role', 'status'];
+    const allowed = [
+      'name',
+      'username',
+      'email',
+      'phone',
+      'role',
+      'status',
+      'studentId',
+      'linkedStudentId',
+      'studentAdmissionNo',
+      'linkedStudentAdmissionNo',
+    ];
     for (const key of allowed) {
       if (updates[key] !== undefined) user[key] = updates[key];
     }

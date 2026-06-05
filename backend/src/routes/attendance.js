@@ -2,7 +2,14 @@
 const express = require("express");
 const Attendance = require("../models/Attendance");
 const Student = require("../models/Student");
+const auth = require("../middleware/auth");
+const { authorize } = require("../middleware/auth");
+const { assertStudentAccess, handleAccessError } = require("../utils/accessScope");
 const router = express.Router();
+const ATTENDANCE_VIEW_ROLES = ["admin", "teacher", "student", "parent"];
+const ATTENDANCE_MANAGE_ROLES = ["admin", "teacher"];
+
+router.use(auth);
 
 function normalizeDate(d) {
   const dt = new Date(d);
@@ -11,13 +18,12 @@ function normalizeDate(d) {
 }
 
 // Get full month register for one student
-router.get("/student/:studentId/month", async (req, res) => {
+router.get("/student/:studentId/month", authorize(...ATTENDANCE_VIEW_ROLES), async (req, res) => {
   try {
     const { studentId } = req.params;
     const { month, year } = req.query; // 1-12, YYYY
 
-    const student = await Student.findById(studentId);
-    if (!student) return res.status(404).json({ error: "Student not found" });
+    const student = await assertStudentAccess(Student, studentId, req.user, ["admin", "teacher"]);
 
     const now = new Date();
     const m = month ? Number(month) : now.getMonth() + 1;
@@ -79,19 +85,19 @@ router.get("/student/:studentId/month", async (req, res) => {
       percentage,
     });
   } catch (err) {
+    if (err.status) return handleAccessError(res, err);
     console.error("Error fetching student month attendance", err);
     res.status(500).json({ error: "Failed to fetch attendance month" });
   }
 });
 
 // Get full academic year (April–March) attendance for one student
-router.get("/student/:studentId/year", async (req, res) => {
+router.get("/student/:studentId/year", authorize(...ATTENDANCE_VIEW_ROLES), async (req, res) => {
   try {
     const { studentId } = req.params;
     const { year } = req.query; // academic year starting year, e.g. 2025 for 2025-04-01 to 2026-03-31
 
-    const student = await Student.findById(studentId);
-    if (!student) return res.status(404).json({ error: "Student not found" });
+    const student = await assertStudentAccess(Student, studentId, req.user, ["admin", "teacher"]);
 
     const now = new Date();
     let startYear;
@@ -143,13 +149,14 @@ router.get("/student/:studentId/year", async (req, res) => {
       percentage,
     });
   } catch (err) {
+    if (err.status) return handleAccessError(res, err);
     console.error("Error fetching yearly attendance", err);
     res.status(500).json({ error: "Failed to fetch yearly attendance" });
   }
 });
 
 // Mark attendance for a given date
-router.post("/mark", async (req, res) => {
+router.post("/mark", authorize(...ATTENDANCE_MANAGE_ROLES), async (req, res) => {
   try {
     const { date, entries } = req.body;
     // entries: [{ studentId, status, note? }, ...]

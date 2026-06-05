@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { erpAPI, feesAPI, studentsAPI } from "../api";
 import { extractFeeLedgerRows, formatCurrency } from "../utils/feeReports";
-import { requireSuperadminPassword } from "../utils/superadminGuard";
+import { requireRolePassword, requireSuperadminPassword } from "../utils/superadminGuard";
 import { getStoredUser } from "../permissions";
 import { printReceiptOnly } from "../utils/receiptPrint";
 
@@ -39,7 +39,9 @@ const quarterGroups = [
 function FeeDetailPage() {
   const { studentId, year } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
-  const isSuperadmin = getStoredUser()?.role === "superadmin";
+  const currentRole = getStoredUser()?.role;
+  const isSuperadmin = currentRole === "superadmin";
+  const canManageFees = ["superadmin", "accountant"].includes(currentRole);
 
   const [student, setStudent] = useState(null);
   const [plan, setPlan] = useState(null);
@@ -122,7 +124,7 @@ function FeeDetailPage() {
 
   async function handleCreateTuition(e) {
     e.preventDefault();
-    const allowed = await requireSuperadminPassword("create tuition plan");
+    const allowed = await requireRolePassword("create tuition plan", ["superadmin", "accountant"]);
     if (!allowed) return;
     if (!monthlyAmount) {
       alert("Monthly amount is required");
@@ -146,7 +148,7 @@ function FeeDetailPage() {
 
   async function handleAddOtherFee(e) {
     e.preventDefault();
-    const allowed = await requireSuperadminPassword("add fee item");
+    const allowed = await requireRolePassword("add fee item", ["superadmin", "accountant"]);
     if (!allowed) return;
     if (!otherLabel || !otherAmount || (otherType === "EXAM" && !otherMonth)) {
       alert(otherType === "EXAM" ? "Fee name, amount, and exam month are required" : "Label and amount are required");
@@ -175,7 +177,7 @@ function FeeDetailPage() {
   async function handleLateFeeSetting(e) {
     e.preventDefault();
     if (!plan || !tuitionItem) return;
-    const allowed = await requireSuperadminPassword("update late fee");
+    const allowed = await requireRolePassword("update late fee", ["superadmin", "accountant"]);
     if (!allowed) return;
 
     try {
@@ -209,7 +211,7 @@ function FeeDetailPage() {
 
   async function handleToggleMonth(itemId, monthName, currentStatus) {
     if (currentStatus === "Paid") {
-      const allowed = await requireSuperadminPassword("mark fee pending");
+      const allowed = await requireRolePassword("mark fee pending", ["superadmin", "accountant"]);
       if (!allowed) return;
       // Directly mark Pending
       await toggleMonthPaid(itemId, monthName, currentStatus, null);
@@ -245,7 +247,7 @@ function FeeDetailPage() {
 
   async function handleToggleItem(itemId, currentStatus) {
     if (currentStatus === "Paid") {
-      const allowed = await requireSuperadminPassword("mark fee item pending");
+      const allowed = await requireRolePassword("mark fee item pending", ["superadmin", "accountant"]);
       if (!allowed) return;
       // Directly mark Pending
       await toggleItemPaid(itemId, currentStatus, null);
@@ -261,7 +263,7 @@ function FeeDetailPage() {
 
   async function confirmMonthDate() {
     if (!activeMonthPick) return;
-    const allowed = await requireSuperadminPassword("record fee payment");
+    const allowed = await requireRolePassword("record fee payment", ["superadmin", "accountant"]);
     if (!allowed) return;
     const { itemId, monthName } = activeMonthPick;
     await feesAPI.recordMonthPayment(plan._id, {
@@ -280,7 +282,7 @@ function FeeDetailPage() {
 
   async function confirmItemDate() {
     if (!activeItemPick) return;
-    const allowed = await requireSuperadminPassword("record fee payment");
+    const allowed = await requireRolePassword("record fee payment", ["superadmin", "accountant"]);
     if (!allowed) return;
     await feesAPI.recordItemPayment(plan._id, {
       itemId: activeItemPick,
@@ -323,7 +325,7 @@ function FeeDetailPage() {
     setActiveItemPick(null);
 
     if (group.status === "Paid") {
-      const allowed = await requireSuperadminPassword("mark fee group pending");
+      const allowed = await requireRolePassword("mark fee group pending", ["superadmin", "accountant"]);
       if (!allowed) return;
       await applyGroupPayment(group, null);
       return;
@@ -336,7 +338,7 @@ function FeeDetailPage() {
 
   async function confirmGroupDate() {
     if (!activeGroupPick) return;
-    const allowed = await requireSuperadminPassword("record fee payment");
+    const allowed = await requireRolePassword("record fee payment", ["superadmin", "accountant"]);
     if (!allowed) return;
     await applyGroupPayment(activeGroupPick, selectedDate || null, paymentDraft.paymentMode);
     setActiveGroupPick(null);
@@ -461,7 +463,7 @@ function FeeDetailPage() {
         </h2>
 
         {!tuitionItem ? (
-          isSuperadmin ? (
+          canManageFees ? (
           <form
             onSubmit={handleCreateTuition}
             style={{
@@ -504,7 +506,7 @@ function FeeDetailPage() {
         ) : (
           <>
             <LateFeeSettings
-              isSuperadmin={isSuperadmin}
+              canManageFees={canManageFees}
               lateFeeSetting={lateFeeSetting}
               onChange={setLateFeeSetting}
               onSubmit={handleLateFeeSetting}
@@ -523,7 +525,7 @@ function FeeDetailPage() {
                 }}
                 onConfirm={confirmGroupDate}
                 onPay={handleGroupPayment}
-                canPay={isSuperadmin}
+                canPay={canManageFees}
                 paymentMedium={paymentDraft.paymentMode}
                 setPaymentMedium={(value) => setPaymentDraft((current) => ({ ...current, paymentMode: value }))}
                 selectedDate={selectedDate}
@@ -588,7 +590,7 @@ function FeeDetailPage() {
                       </Td>
                       <Td>
                         <div style={{ position: "relative" }}>
-                          {isSuperadmin ? <button
+                          {canManageFees ? <button
                             style={{
                               background:
                                 m.status === "Paid" ? "#e5e7eb" : "#16a34a",
@@ -648,7 +650,7 @@ function FeeDetailPage() {
           Other Fees (Exam / Activity / Others)
         </h2>
 
-        {isSuperadmin && <form
+        {canManageFees && <form
           onSubmit={handleAddOtherFee}
           style={{
             display: "flex",
@@ -788,7 +790,7 @@ function FeeDetailPage() {
                       </Td>
                       <Td>
                         <div style={{ position: "relative" }}>
-                          {isSuperadmin ? <button
+                          {canManageFees ? <button
                             style={{
                               background:
                                 i.status === "Paid" ? "#e5e7eb" : "#16a34a",
@@ -1152,7 +1154,7 @@ function formatReceiptDate(date) {
   });
 }
 
-function LateFeeSettings({ isSuperadmin, lateFeeSetting, onChange, onSubmit, tuitionItem }) {
+function LateFeeSettings({ canManageFees, lateFeeSetting, onChange, onSubmit, tuitionItem }) {
   return (
     <form className="fee-late-settings" onSubmit={onSubmit}>
       <div>
@@ -1160,7 +1162,7 @@ function LateFeeSettings({ isSuperadmin, lateFeeSetting, onChange, onSubmit, tui
         <strong>Rs. 10 per day from 10th to 30th of every month</strong>
         <small>Current late fee: Rs. {tuitionItem?.lateFeeAmount || 10} per day, capped on the 30th.</small>
       </div>
-      {isSuperadmin ? (
+      {canManageFees ? (
         <>
           <label>
             <span>Late fee per day</span>
