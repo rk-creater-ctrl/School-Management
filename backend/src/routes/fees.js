@@ -18,8 +18,6 @@ router.use(auth);
 
 const DEFAULT_MONTHS = [
   "April",
-  "May",
-  "June",
   "July",
   "August",
   "September",
@@ -30,6 +28,8 @@ const DEFAULT_MONTHS = [
   "February",
   "March",
 ];
+const NON_FEE_MONTHS = new Set(["May", "June"]);
+const NEXT_YEAR_MONTHS = new Set(["January", "February", "March"]);
 const MONTH_INDEX = DEFAULT_MONTHS.reduce((map, month, index) => {
   map[month] = index;
   return map;
@@ -62,17 +62,15 @@ function getAcademicYearParts(academicYear) {
 
 function getLateFeeDate(monthName, academicYear, startDay = 10) {
   const { startYear, endYear } = getAcademicYearParts(academicYear);
-  const monthIndex = MONTH_INDEX[monthName] ?? 0;
   const calendarMonthIndex = CALENDAR_MONTH_INDEX[monthName] ?? 0;
-  const calendarYear = monthIndex <= 8 ? startYear : endYear;
+  const calendarYear = NEXT_YEAR_MONTHS.has(monthName) ? endYear : startYear;
   return normalizeDate(new Date(calendarYear, calendarMonthIndex, Number(startDay) || 10));
 }
 
 function getLateFeeEndDate(monthName, academicYear) {
   const { startYear, endYear } = getAcademicYearParts(academicYear);
-  const monthIndex = MONTH_INDEX[monthName] ?? 0;
   const calendarMonthIndex = CALENDAR_MONTH_INDEX[monthName] ?? 0;
-  const calendarYear = monthIndex <= 8 ? startYear : endYear;
+  const calendarYear = NEXT_YEAR_MONTHS.has(monthName) ? endYear : startYear;
   const lastDate = new Date(calendarYear, calendarMonthIndex + 1, 0).getDate();
   return normalizeDate(new Date(calendarYear, calendarMonthIndex, Math.min(LATE_FEE_END_DAY, lastDate)));
 }
@@ -112,9 +110,8 @@ function normalizeDate(date) {
 }
 
 function getMonthDateRange(monthName, academicYear) {
-  const monthIndex = MONTH_INDEX[monthName] ?? 0;
   const { startYear, endYear } = getAcademicYearParts(academicYear);
-  const calendarYear = monthIndex <= 8 ? startYear : endYear;
+  const calendarYear = NEXT_YEAR_MONTHS.has(monthName) ? endYear : startYear;
   const calendarMonth = CALENDAR_MONTH_INDEX[monthName] ?? 0;
 
   return {
@@ -278,7 +275,8 @@ function recomputeTotals(fee, asOf = new Date()) {
       }
       if (!item.lateFeeStartDay) item.lateFeeStartDay = LATE_FEE_START_DAY;
 
-      const months = item.months || [];
+      item.months = (item.months || []).filter((month) => !NON_FEE_MONTHS.has(month.name));
+      const months = item.months;
       for (const m of months) {
         const baseAmount = normalizeMoney(m.amount);
         if (!normalizeMoney(m.lateFeeAmount)) {

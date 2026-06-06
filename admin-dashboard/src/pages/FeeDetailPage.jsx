@@ -16,8 +16,6 @@ const paymentMethodOptions = ["Cash", "Online", "UPI", "Card", "Bank Transfer", 
 
 const feeMonths = [
   "April",
-  "May",
-  "June",
   "July",
   "August",
   "September",
@@ -30,11 +28,25 @@ const feeMonths = [
 ];
 
 const quarterGroups = [
-  ["April", "May", "June"],
+  ["April"],
   ["July", "August", "September"],
   ["October", "November", "December"],
   ["January", "February", "March"],
 ];
+
+const calendarMonthIndex = {
+  April: 3,
+  July: 6,
+  August: 7,
+  September: 8,
+  October: 9,
+  November: 10,
+  December: 11,
+  January: 0,
+  February: 1,
+  March: 2,
+};
+const nextYearMonths = new Set(["January", "February", "March"]);
 
 function FeeDetailPage() {
   const { studentId, year } = useParams();
@@ -1119,10 +1131,9 @@ function getReceiptPeriodRange(lines, academicYear) {
 }
 
 function getMonthDateRange(monthName, academicYear) {
-  const monthIndex = getMonthPosition(monthName);
-  const calendarMonth = monthIndex >= 0 && monthIndex <= 8 ? monthIndex + 3 : monthIndex - 9;
   const { startYear, endYear } = getAcademicYearParts(academicYear);
-  const calendarYear = monthIndex >= 0 && monthIndex <= 8 ? startYear : endYear;
+  const calendarMonth = calendarMonthIndex[monthName] ?? 0;
+  const calendarYear = nextYearMonths.has(monthName) ? endYear : startYear;
 
   return {
     from: new Date(calendarYear, calendarMonth, 1),

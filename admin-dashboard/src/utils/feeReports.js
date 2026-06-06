@@ -1,7 +1,5 @@
 const feeMonths = [
   "April",
-  "May",
-  "June",
   "July",
   "August",
   "September",
@@ -12,6 +10,20 @@ const feeMonths = [
   "February",
   "March",
 ];
+
+const calendarMonthIndex = {
+  April: 3,
+  July: 6,
+  August: 7,
+  September: 8,
+  October: 9,
+  November: 10,
+  December: 11,
+  January: 0,
+  February: 1,
+  March: 2,
+};
+const nextYearMonths = new Set(["January", "February", "March"]);
 
 export function extractFeeLedgerRows(feesOrPlan) {
   const fees = Array.isArray(feesOrPlan) ? feesOrPlan : feesOrPlan ? [feesOrPlan] : [];
@@ -205,15 +217,14 @@ function isOneTimeItemDueNow(item, academicYear) {
 }
 
 function isFeeMonthDueNow(monthName, academicYear, asOf = new Date()) {
-  const monthPosition = feeMonths.indexOf(monthName);
-  if (monthPosition < 0) return true;
-  return getAcademicMonthDateRange(monthPosition, academicYear).from <= normalizeDate(asOf);
+  if (!feeMonths.includes(monthName)) return true;
+  return getAcademicMonthDateRange(monthName, academicYear).from <= normalizeDate(asOf);
 }
 
-function getAcademicMonthDateRange(monthPosition, academicYear) {
-  const calendarMonth = monthPosition <= 8 ? monthPosition + 3 : monthPosition - 9;
+function getAcademicMonthDateRange(monthName, academicYear) {
+  const calendarMonth = calendarMonthIndex[monthName] ?? 0;
   const { startYear, endYear } = getAcademicYearParts(academicYear);
-  const calendarYear = monthPosition <= 8 ? startYear : endYear;
+  const calendarYear = nextYearMonths.has(monthName) ? endYear : startYear;
 
   return {
     from: normalizeDate(new Date(calendarYear, calendarMonth, 1)),
