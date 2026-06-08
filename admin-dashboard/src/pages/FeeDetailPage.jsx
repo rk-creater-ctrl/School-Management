@@ -5,6 +5,7 @@ import { extractFeeLedgerRows, formatCurrency } from "../utils/feeReports";
 import { requireRolePassword, requireSuperadminPassword } from "../utils/superadminGuard";
 import { getStoredUser } from "../permissions";
 import { downloadReceiptHtml, printReceiptOnly } from "../utils/receiptPrint";
+import { getSchoolNameForClass } from "../utils/branding";
 
 const paymentModes = [
   { value: "monthly", label: "Monthly" },
@@ -1009,7 +1010,8 @@ function FeeLedger({ ledgerRows, onReceipt }) {
 }
 
 function ReceiptModal({ onClose, receipt, student }) {
-  const { logoUrl, schoolName } = useReceiptSchoolBranding();
+  const receiptClassName = student?.className || receipt.className || "";
+  const { logoUrl, schoolName } = useReceiptSchoolBranding(receiptClassName);
   const receiptLines = useMemo(
     () => (receipt.lines?.length ? receipt.lines : [receipt]),
     [receipt]
@@ -1255,7 +1257,7 @@ function ReceiptModal({ onClose, receipt, student }) {
   );
 }
 
-function useReceiptSchoolBranding() {
+function useReceiptSchoolBranding(className = "") {
   const [branding, setBranding] = useState({ logoUrl: "", schoolName: "School" });
 
   useEffect(() => {
@@ -1264,7 +1266,7 @@ function useReceiptSchoolBranding() {
       .list("schoolSettings")
       .then((res) => {
         const settings = res.data?.[0]?.payload || {};
-        const nextName = String(settings.schoolName || settings.shortName || "").trim();
+        const nextName = getSchoolNameForClass(settings, className);
         const nextLogo = String(settings.logoUrl || "").trim();
         if (active) {
           setBranding({
@@ -1278,7 +1280,7 @@ function useReceiptSchoolBranding() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [className]);
 
   return branding;
 }

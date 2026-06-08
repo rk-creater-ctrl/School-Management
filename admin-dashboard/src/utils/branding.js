@@ -9,6 +9,20 @@ export function applySchoolBranding(settings = {}) {
   setFavicon(logoUrl || defaultIcon);
 }
 
+export function getSchoolNameForClass(settings = {}, className = "") {
+  const defaultName = cleanSchoolName(settings.schoolName || settings.shortName) || "School";
+
+  if (isPrePrimaryClass(className)) {
+    return cleanSchoolName(settings.prePrimarySchoolName) || defaultName;
+  }
+
+  if (isClassOneOrHigher(className)) {
+    return cleanSchoolName(settings.primarySchoolName) || defaultName;
+  }
+
+  return defaultName;
+}
+
 function setFavicon(iconUrl) {
   let link = document.querySelector("link[rel='icon']");
 
@@ -30,4 +44,70 @@ function getIconType(iconUrl) {
   if (cleanUrl.endsWith(".gif")) return "image/gif";
   if (cleanUrl.endsWith(".ico")) return "image/x-icon";
   return "image/svg+xml";
+}
+
+function cleanSchoolName(value) {
+  return String(value || "").trim();
+}
+
+function normalizeClassName(value) {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function isPrePrimaryClass(className) {
+  const normalized = normalizeClassName(className);
+  if (!normalized) return false;
+
+  return [
+    "playgroup",
+    "pg",
+    "prenursery",
+    "nursery",
+    "nursary",
+    "lkg",
+    "ukg",
+    "juniorkg",
+    "jrkg",
+    "seniorkg",
+    "srkg",
+    "kg",
+    "kg1",
+    "kg2",
+  ].some((item) => normalized.includes(item));
+}
+
+function isClassOneOrHigher(className) {
+  const normalized = normalizeClassName(className);
+  if (!normalized) return false;
+
+  if (/^(class)?(1[0-2]|[1-9])(st|nd|rd|th)?[a-z]?$/.test(normalized)) {
+    return true;
+  }
+
+  return [
+    "first",
+    "second",
+    "third",
+    "fourth",
+    "fifth",
+    "sixth",
+    "seventh",
+    "eighth",
+    "ninth",
+    "tenth",
+    "eleventh",
+    "twelfth",
+    "i",
+    "ii",
+    "iii",
+    "iv",
+    "v",
+    "vi",
+    "vii",
+    "viii",
+    "ix",
+    "x",
+    "xi",
+    "xii",
+  ].includes(normalized.replace(/^class/, ""));
 }

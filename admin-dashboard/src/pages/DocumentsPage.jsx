@@ -1,5 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BadgeCheck, FileText, IdCard, Printer, ScrollText, Upload, Users } from "lucide-react";
+import { erpAPI } from "../api";
+import { getSchoolNameForClass } from "../utils/branding";
 
 const defaultSubjects = [
   { subject: "", marks: "", max: "" },
@@ -13,6 +15,7 @@ function DocumentsPage() {
   const [activeTab, setActiveTab] = useState("marksheet");
   const [idPhoto, setIdPhoto] = useState("");
   const [parentPhoto, setParentPhoto] = useState("");
+  const [schoolSettings, setSchoolSettings] = useState({});
   const [student, setStudent] = useState({
     name: "",
     fatherName: "",
@@ -37,6 +40,20 @@ function DocumentsPage() {
   });
   const [subjects, setSubjects] = useState(defaultSubjects);
 
+  useEffect(() => {
+    let active = true;
+    erpAPI
+      .list("schoolSettings")
+      .then((res) => {
+        if (active) setSchoolSettings(res.data?.[0]?.payload || {});
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const totals = useMemo(() => {
     const obtained = subjects.reduce((sum, row) => sum + Number(row.marks || 0), 0);
     const maximum = subjects.reduce((sum, row) => sum + Number(row.max || 0), 0);
@@ -48,6 +65,14 @@ function DocumentsPage() {
       grade: percent >= 90 ? "A+" : percent >= 75 ? "A" : percent >= 60 ? "B" : percent >= 45 ? "C" : "D",
     };
   }, [subjects]);
+  const printedSchoolName = useMemo(
+    () => student.schoolName.trim() || getSchoolNameForClass(schoolSettings, student.className),
+    [schoolSettings, student.className, student.schoolName]
+  );
+  const documentStudent = useMemo(
+    () => ({ ...student, schoolName: printedSchoolName }),
+    [printedSchoolName, student]
+  );
 
   function updateStudent(field, value) {
     setStudent((current) => ({ ...current, [field]: value }));
@@ -110,7 +135,7 @@ function DocumentsPage() {
             <Field label="Name" value={student.name} onChange={(value) => updateStudent("name", value)} />
             <Field label="Father's name" value={student.fatherName} onChange={(value) => updateStudent("fatherName", value)} />
             <Field label="Mother's name" value={student.motherName} onChange={(value) => updateStudent("motherName", value)} />
-            <Field label="School name" value={student.schoolName} onChange={(value) => updateStudent("schoolName", value)} />
+            <Field label="School name override" value={student.schoolName} onChange={(value) => updateStudent("schoolName", value)} />
             <Field label="Mobile number" value={student.mobile} onChange={(value) => updateStudent("mobile", value)} maxLength={10} />
             <Field label="DOB" type="date" value={student.dob} onChange={(value) => updateStudent("dob", value)} />
             <Field label="10 digit student code" value={student.studentCode} onChange={(value) => updateStudent("studentCode", value)} maxLength={10} />
@@ -183,13 +208,13 @@ function DocumentsPage() {
 
         <main className="document-preview">
           {activeTab === "marksheet" ? (
-            <Marksheet student={student} subjects={subjects} totals={totals} />
+            <Marksheet student={documentStudent} subjects={subjects} totals={totals} />
           ) : activeTab === "idcard" ? (
-            <IdCardPreview student={student} photo={idPhoto} />
+            <IdCardPreview student={documentStudent} photo={idPhoto} />
           ) : activeTab === "parentcard" ? (
-            <ParentCardPreview student={student} photo={parentPhoto} />
+            <ParentCardPreview student={documentStudent} photo={parentPhoto} />
           ) : (
-            <CharacterCertificate student={student} />
+            <CharacterCertificate student={documentStudent} />
           )}
         </main>
       </section>

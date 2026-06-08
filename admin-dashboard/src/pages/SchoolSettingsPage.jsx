@@ -8,6 +8,8 @@ import { applySchoolBranding } from "../utils/branding";
 const emptySettings = {
   schoolName: "",
   shortName: "",
+  prePrimarySchoolName: "",
+  primarySchoolName: "",
   logoUrl: "",
   address: "",
   city: "",
@@ -179,6 +181,8 @@ function SchoolSettingsPage() {
           <div className="form-grid">
             <Field label="School name" value={form.schoolName} onChange={(value) => updateForm("schoolName", value)} required />
             <Field label="Short name" value={form.shortName} onChange={(value) => updateForm("shortName", value)} />
+            <Field label="School name till UKG" value={form.prePrimarySchoolName} onChange={(value) => updateForm("prePrimarySchoolName", value)} />
+            <Field label="School name from Class 1 onward" value={form.primarySchoolName} onChange={(value) => updateForm("primarySchoolName", value)} />
             <AcademicYearSelect className="field" value={form.academicYear} onChange={(value) => updateForm("academicYear", value)} />
             <label className="field logo-upload-field">
               <span>School logo</span>

@@ -20,6 +20,7 @@ import { getStoredUser } from "../permissions";
 import { formatCurrency } from "../utils/feeReports";
 import { emptyVehicleForm, getCurrentAcademicYear } from "../utils/transport";
 import { printReceiptOnly } from "../utils/receiptPrint";
+import { getSchoolNameForClass } from "../utils/branding";
 
 const statusOptions = ["Active", "Maintenance", "Inactive"];
 
@@ -819,7 +820,7 @@ export function StudentPickerModal({
 
 export function TransportReceiptModal({ onClose, receipt }) {
   const { fee, month } = receipt;
-  const schoolName = useReceiptSchoolName();
+  const schoolName = useReceiptSchoolName(fee.className);
   const lateFee = getMonthLateFee(month);
   const paidAmount = Number(month.amount || 0) + lateFee;
   const paidDate = month.paidDate ? new Date(month.paidDate) : new Date();
@@ -914,7 +915,7 @@ export function TransportReceiptModal({ onClose, receipt }) {
   );
 }
 
-function useReceiptSchoolName() {
+function useReceiptSchoolName(className = "") {
   const [schoolName, setSchoolName] = useState("School");
 
   useEffect(() => {
@@ -923,7 +924,7 @@ function useReceiptSchoolName() {
       .list("schoolSettings")
       .then((res) => {
         const settings = res.data?.[0]?.payload || {};
-        const nextName = String(settings.schoolName || settings.shortName || "").trim();
+        const nextName = getSchoolNameForClass(settings, className);
         if (active && nextName) setSchoolName(nextName);
       })
       .catch(() => {});
@@ -931,7 +932,7 @@ function useReceiptSchoolName() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [className]);
 
   return schoolName;
 }
