@@ -1,7 +1,9 @@
 const express = require("express");
 const User = require("../models/User");
 const TeacherProfile = require("../models/TeacherProfile");
+const TeacherClassRecord = require("../models/TeacherClassRecord");
 const StaffPayroll = require("../models/StaffPayroll");
+const Student = require("../models/Student");
 const auth = require("../middleware/auth");
 const { authorize } = require("../middleware/auth");
 
@@ -28,6 +30,36 @@ function cleanStatus(value) {
 
 function cleanPayrollCategory(value) {
   return PAYROLL_CATEGORIES.includes(value) ? value : "Skilled";
+}
+
+function cleanStringArray(values) {
+  if (!Array.isArray(values)) return [];
+  return [...new Set(values.map(cleanString).filter(Boolean))];
+}
+
+function cleanAssignments(values) {
+  if (!Array.isArray(values)) return [];
+  return values
+    .map((item) => ({
+      className: cleanString(item.className),
+      subject: cleanString(item.subject),
+    }))
+    .filter((item) => item.className && item.subject);
+}
+
+function cleanSchedule(values) {
+  if (!Array.isArray(values)) return [];
+  return values
+    .map((item) => ({
+      day: cleanString(item.day) || "Daily",
+      period: cleanString(item.period),
+      className: cleanString(item.className),
+      subject: cleanString(item.subject),
+      startTime: cleanString(item.startTime),
+      endTime: cleanString(item.endTime),
+      note: cleanString(item.note),
+    }))
+    .filter((item) => item.period && item.className && item.subject);
 }
 
 function normalizeMoney(value) {
@@ -82,6 +114,67 @@ function buildPayrollPayload(body) {
   };
 }
 
+function buildProfilePayload(body) {
+  const payload = {
+    employeeCode: cleanString(body.employeeCode),
+    designation: cleanString(body.designation),
+    department: cleanString(body.department),
+    qualification: cleanString(body.qualification),
+    alternatePhone: cleanString(body.alternatePhone),
+    address: cleanString(body.address),
+    about: cleanString(body.about),
+    subjects: cleanStringArray(body.subjects),
+  };
+
+  if (body.experienceYears === "" || body.experienceYears === null || body.experienceYears === undefined) {
+    payload.experienceYears = undefined;
+  } else {
+    payload.experienceYears = Number(body.experienceYears);
+  }
+
+  if (Array.isArray(body.assignments)) payload.assignments = cleanAssignments(body.assignments);
+  if (Array.isArray(body.schedule)) payload.schedule = cleanSchedule(body.schedule);
+
+  Object.keys(payload).forEach((key) => {
+    if (payload[key] === undefined || Number.isNaN(payload[key])) delete payload[key];
+  });
+
+  return payload;
+}
+
+function staffProfileResponse(user, profile, payroll) {
+  return {
+    id: user._id,
+    _id: user._id,
+    name: user.name,
+    username: user.username || "",
+    email: user.email,
+    phone: user.phone || "",
+    role: user.role,
+    status: user.status,
+    profilePhotoUrl: user.profilePhotoUrl || "",
+    campus: user.campus || "",
+    academicYear: user.academicYear || "",
+    employeeCode: payroll?.employeeCode || profile?.employeeCode || "",
+    payrollCategory: payroll?.payrollCategory || "Skilled",
+    department: payroll?.department || profile?.department || (user.role === "teacher" ? "Teaching Staff" : ""),
+    designation: payroll?.designation || profile?.designation || "",
+    monthlySalary: payroll?.monthlySalary || 0,
+    includeSundaySalary: payroll?.includeSundaySalary !== false,
+    bankName: payroll?.bankName || "",
+    accountNo: payroll?.accountNo || "",
+    ifscCode: payroll?.ifscCode || "",
+    qualification: profile?.qualification || "",
+    experienceYears: profile?.experienceYears ?? "",
+    alternatePhone: profile?.alternatePhone || "",
+    address: profile?.address || "",
+    about: profile?.about || "",
+    subjects: profile?.subjects || [],
+    assignments: profile?.assignments || [],
+    schedule: profile?.schedule || [],
+  };
+}
+
 async function buildStaffRows(users) {
   const payrolls = await StaffPayroll.find({ userId: { $in: users.map((user) => user._id) } }).lean();
   const profiles = await TeacherProfile.find({ userId: { $in: users.map((user) => user._id) } }).lean();
@@ -100,6 +193,7 @@ async function buildStaffRows(users) {
       phone: profile?.alternatePhone || user.phone || "",
       role: user.role,
       status: user.status,
+      profilePhotoUrl: user.profilePhotoUrl || "",
       employeeCode: payroll?.employeeCode || profile?.employeeCode || "",
       payrollCategory: payroll?.payrollCategory || "Skilled",
       department: payroll?.department || profile?.department || (user.role === "teacher" ? "Teaching Staff" : ""),
@@ -124,6 +218,142 @@ router.get("/", auth, authorize("superadmin", "admin", "accountant"), async (req
   } catch (err) {
     console.error("Error loading staff directory", err);
     res.status(500).json({ error: "Failed to load staff directory" });
+  }
+});
+
+router.get("/:id/profile", auth, authorize("superadmin", "admin"), async (req, res) => {
+  try {
+    const user = await User.findOne({ _id: req.params.id, role: { $in: STAFF_ROLES } })
+      .select("-password -otpHash")
+      .lean();
+    if (!user) return res.status(404).json({ error: "Staff account not found" });
+
+    const [profile, payroll] = await Promise.all([
+      TeacherProfile.findOne({ userId: user._id }).lean(),
+      StaffPayroll.findOne({ userId: user._id }).lean(),
+    ]);
+
+    res.json(staffProfileResponse(user, profile, payroll));
+  } catch (err) {
+    console.error("Error loading staff profile", err);
+    res.status(500).json({ error: "Failed to load staff profile" });
+  }
+});
+
+router.put("/:id/profile", auth, authorize("superadmin", "admin"), async (req, res) => {
+  try {
+    const user = await User.findOne({ _id: req.params.id, role: { $in: STAFF_ROLES } });
+    if (!user) return res.status(404).json({ error: "Staff account not found" });
+
+    const email = cleanString(req.body.email).toLowerCase();
+    if (email && email !== user.email) {
+      await ensureUniqueLogin({ email, excludeId: user._id });
+      user.email = email;
+    }
+
+    if (req.body.name !== undefined) user.name = cleanString(req.body.name) || user.name;
+    if (req.body.phone !== undefined) user.phone = cleanString(req.body.phone).replace(/\D/g, "").slice(0, 10);
+    if (req.body.profilePhotoUrl !== undefined) user.profilePhotoUrl = cleanString(req.body.profilePhotoUrl);
+    await user.save();
+
+    const profilePayload = buildProfilePayload(req.body);
+    const profile = await TeacherProfile.findOneAndUpdate(
+      { userId: user._id },
+      { $set: profilePayload, $setOnInsert: { userId: user._id } },
+      { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
+    ).lean();
+
+    const payroll = await StaffPayroll.findOneAndUpdate(
+      { userId: user._id },
+      {
+        $set: {
+          employeeCode: cleanString(req.body.employeeCode),
+          department: cleanString(req.body.department),
+          designation: cleanString(req.body.designation),
+        },
+        $setOnInsert: { userId: user._id },
+      },
+      { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
+    ).lean();
+
+    res.json(staffProfileResponse(user.toObject(), profile, payroll));
+  } catch (err) {
+    console.error("Error saving staff profile", err);
+    res.status(err.statusCode || 500).json({ error: err.message || "Failed to save staff profile" });
+  }
+});
+
+router.get("/:id/progress", auth, authorize("superadmin", "admin"), async (req, res) => {
+  try {
+    const user = await User.findOne({ _id: req.params.id, role: { $in: STAFF_ROLES } })
+      .select("-password -otpHash")
+      .lean();
+    if (!user) return res.status(404).json({ error: "Staff account not found" });
+
+    const [profile, records] = await Promise.all([
+      TeacherProfile.findOne({ userId: user._id }).lean(),
+      TeacherClassRecord.find({ teacherId: user._id }).sort({ date: -1, className: 1, subject: 1 }).lean(),
+    ]);
+
+    const studentIds = [
+      ...new Set(
+        records
+          .flatMap((record) => [
+            ...(record.copySubmittedStudentIds || []),
+            ...(record.examCopyTakenStudentIds || []),
+          ])
+          .map((id) => String(id || "").trim())
+          .filter(Boolean)
+      ),
+    ];
+    const students = studentIds.length
+      ? await Student.find({ _id: { $in: studentIds } }).select("name admissionNo className rollNo").lean()
+      : [];
+    const studentById = new Map(students.map((student) => [String(student._id), student]));
+    const namesForIds = (ids = []) =>
+      ids
+        .map((id) => studentById.get(String(id)))
+        .filter(Boolean)
+        .map((student) => ({
+          id: student._id,
+          name: student.name,
+          admissionNo: student.admissionNo,
+          className: student.className,
+          rollNo: student.rollNo,
+        }));
+
+    const reviewedStatuses = new Set(["reviewed", "approved", "needs_correction"]);
+    const summary = {
+      totalRecords: records.length,
+      submittedRecords: records.filter((record) => record.reviewStatus === "submitted").length,
+      reviewedRecords: records.filter((record) => reviewedStatuses.has(record.reviewStatus)).length,
+      approvedRecords: records.filter((record) => record.reviewStatus === "approved").length,
+      needsCorrection: records.filter((record) => record.reviewStatus === "needs_correction").length,
+      completedPeriods: records.filter((record) => record.periodStatus === "completed").length,
+      classes: [...new Set(records.map((record) => record.className).filter(Boolean))],
+      subjects: [...new Set(records.map((record) => record.subject).filter(Boolean))],
+    };
+
+    res.json({
+      staff: {
+        id: user._id,
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        profilePhotoUrl: user.profilePhotoUrl || "",
+      },
+      profile: profile || null,
+      summary,
+      records: records.slice(0, 80).map((record) => ({
+        ...record,
+        copySubmittedStudents: namesForIds(record.copySubmittedStudentIds),
+        examCopyTakenStudents: namesForIds(record.examCopyTakenStudentIds),
+      })),
+    });
+  } catch (err) {
+    console.error("Error loading staff progress", err);
+    res.status(500).json({ error: err.message || "Failed to load staff progress" });
   }
 });
 

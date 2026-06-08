@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Crown, Edit3, GraduationCap, Save, ShieldCheck, Trash2, UserPlus, X } from "lucide-react";
+import { CheckCircle2, Crown, Edit3, GraduationCap, Save, ShieldCheck, Trash2, UserPlus, UserRound, X, XCircle } from "lucide-react";
 import { authAPI } from "../api";
-import { getStoredUser, normalizePermissions } from "../permissions";
+import { canUseRole, getStoredUser, normalizePermissions } from "../permissions";
 
 const roleOptions = ["superadmin", "admin", "teacher", "student", "parent", "accountant", "librarian", "staff"];
 const permissionOptions = [
@@ -35,8 +35,10 @@ const permissionOptions = [
 function UserManagementPage() {
   const currentUser = getStoredUser();
   const isSuperadmin = currentUser?.role === "superadmin";
+  const canReviewPasswords = canUseRole(["superadmin", "admin"], currentUser);
   const allowedRoles = isSuperadmin ? roleOptions : ["teacher", "student"];
   const [users, setUsers] = useState([]);
+  const [passwordRequests, setPasswordRequests] = useState([]);
   const [status, setStatus] = useState("");
   const [editingUser, setEditingUser] = useState(null);
   const [editForm, setEditForm] = useState({
@@ -67,6 +69,7 @@ function UserManagementPage() {
 
   useEffect(() => {
     loadUsers();
+    loadPasswordRequests();
   }, []);
 
   const groupedUsers = useMemo(
@@ -101,6 +104,16 @@ function UserManagementPage() {
       });
     } catch (error) {
       setStatus(error.response?.data?.error || "Unable to load users.");
+    }
+  }
+
+  async function loadPasswordRequests() {
+    if (!canReviewPasswords) return;
+    try {
+      const res = await authAPI.listPasswordRequests();
+      setPasswordRequests(res.data || []);
+    } catch (error) {
+      setPasswordRequests([]);
     }
   }
 
@@ -228,6 +241,20 @@ function UserManagementPage() {
     }
   }
 
+  async function reviewPasswordRequest(request, nextStatus) {
+    const reviewNote = nextStatus === "rejected" ? window.prompt("Reason for rejection:") || "" : "";
+    try {
+      await authAPI.reviewPasswordRequest(request._id || request.id, {
+        status: nextStatus,
+        reviewNote,
+      });
+      setStatus(nextStatus === "approved" ? "Password request approved." : "Password request rejected.");
+      await loadPasswordRequests();
+    } catch (error) {
+      setStatus(error.response?.data?.error || "Unable to review password request.");
+    }
+  }
+
   return (
     <div className="users-page">
       <section className="module-hero">
@@ -330,6 +357,49 @@ function UserManagementPage() {
           </form>
         )}
 
+        {canReviewPasswords && (
+          <article className="chart-card wide password-request-panel">
+            <div className="section-heading">
+              <div>
+                <span className="eyebrow">Approval</span>
+                <h3>Password Requests</h3>
+              </div>
+              <ShieldCheck size={20} />
+            </div>
+
+            <div className="password-request-list">
+              {passwordRequests.map((request) => (
+                <div className="password-request-row" key={request._id || request.id}>
+                  <UserAvatar user={request.user} />
+                  <div>
+                    <strong>{request.user?.name || "Unknown user"}</strong>
+                    <span>
+                      {request.user?.role || request.requesterRole} request
+                      {request.requestedAt ? ` on ${formatDateTime(request.requestedAt)}` : ""}
+                    </span>
+                    {request.note && <small>{request.note}</small>}
+                    {request.reviewNote && <small>Review: {request.reviewNote}</small>}
+                  </div>
+                  <small className={`status-pill ${request.status || "pending"}`}>{request.status || "pending"}</small>
+                  {request.status === "pending" ? (
+                    <div className="user-row-actions">
+                      <button className="icon-button table-icon-action" type="button" onClick={() => reviewPasswordRequest(request, "approved")} aria-label="Approve password request">
+                        <CheckCircle2 size={15} />
+                      </button>
+                      <button className="icon-button table-icon-action danger" type="button" onClick={() => reviewPasswordRequest(request, "rejected")} aria-label="Reject password request">
+                        <XCircle size={15} />
+                      </button>
+                    </div>
+                  ) : (
+                    <small>{request.reviewedAt ? formatDateTime(request.reviewedAt) : "-"}</small>
+                  )}
+                </div>
+              ))}
+              {passwordRequests.length === 0 && <div className="empty-state">No password requests.</div>}
+            </div>
+          </article>
+        )}
+
         <article className="chart-card wide">
           <div className="section-heading">
             <div>
@@ -344,7 +414,8 @@ function UserManagementPage() {
                 <h4>{role}</h4>
                 {roleUsers.map((user) => (
                   <div className="user-row" key={user._id || user.id}>
-                    <div>
+                    <UserAvatar user={user} />
+                    <div className="user-row-main">
                       <strong>{user.name}</strong>
                       <span>{user.username || user.email}</span>
                       {(user.studentAdmissionNo || user.linkedStudentAdmissionNo) && <span>Linked: {user.studentAdmissionNo || user.linkedStudentAdmissionNo}</span>}
@@ -435,6 +506,25 @@ function formatPermissions(permissions) {
   return normalizePermissions(permissions)
     .map((permission) => labels.get(permission) || permission)
     .join(", ");
+}
+
+function formatDateTime(value) {
+  if (!value) return "";
+  return new Date(value).toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function UserAvatar({ user }) {
+  return (
+    <span className="user-list-avatar">
+      {user?.profilePhotoUrl ? <img src={user.profilePhotoUrl} alt="" /> : <UserRound size={18} />}
+    </span>
+  );
 }
 
 export default UserManagementPage;

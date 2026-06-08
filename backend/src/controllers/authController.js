@@ -1,6 +1,8 @@
 const User = require('../models/User');
+const PasswordChangeRequest = require('../models/PasswordChangeRequest');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const { hasAnyRole } = require('../utils/accessScope');
 
 function signToken(user) {
   return jwt.sign(
@@ -25,14 +27,58 @@ function publicUser(user) {
     studentAdmissionNo: user.studentAdmissionNo,
     linkedStudentAdmissionNo: user.linkedStudentAdmissionNo,
     permissions: normalizePermissions(user.permissions),
+    profilePhotoUrl: user.profilePhotoUrl || "",
+    campus: user.campus || "",
+    academicYear: user.academicYear || "",
     isEmailVerified: user.isEmailVerified,
   };
+}
+
+function cleanString(value) {
+  return String(value || '').trim();
 }
 
 function normalizePermissions(permissions) {
   return Array.isArray(permissions)
     ? [...new Set(permissions.map((item) => String(item || '').toLowerCase().trim()).filter((item) => item && item !== 'superadmin'))]
     : [];
+}
+
+function passwordRequestResponse(request, user, reviewer) {
+  const plain = request?.toObject ? request.toObject() : { ...(request || {}) };
+  delete plain.requestedPasswordHash;
+
+  return {
+    ...plain,
+    user: user
+      ? {
+          _id: user._id,
+          id: user._id,
+          name: user.name,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+          profilePhotoUrl: user.profilePhotoUrl || "",
+        }
+      : null,
+    reviewer: reviewer
+      ? {
+          _id: reviewer._id,
+          id: reviewer._id,
+          name: reviewer.name,
+          role: reviewer.role,
+        }
+      : null,
+  };
+}
+
+function canReviewPasswordRequest(actor, targetUser) {
+  if (!actor || !targetUser) return false;
+  if (String(actor._id || actor.id) === String(targetUser._id || targetUser.id)) return false;
+  if (actor.role === 'superadmin') return true;
+  if (!hasAnyRole(actor, ['admin'])) return false;
+  if (targetUser.role === 'superadmin') return false;
+  return !hasAnyRole(targetUser, ['admin']);
 }
 
 exports.register = async (req, res) => {
@@ -85,6 +131,31 @@ exports.login = async (req, res) => {
 
 exports.me = async (req, res) => {
   res.json({ user: publicUser(req.user) });
+};
+
+exports.updateMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const email = cleanString(req.body.email).toLowerCase();
+    if (email && email !== user.email) {
+      const existing = await User.findOne({ _id: { $ne: user._id }, email });
+      if (existing) return res.status(400).json({ error: 'Email already exists' });
+      user.email = email;
+    }
+
+    if (req.body.name !== undefined) user.name = cleanString(req.body.name) || user.name;
+    if (req.body.phone !== undefined) user.phone = cleanString(req.body.phone).replace(/\D/g, '').slice(0, 10);
+    if (req.body.campus !== undefined) user.campus = cleanString(req.body.campus);
+    if (req.body.academicYear !== undefined) user.academicYear = cleanString(req.body.academicYear);
+    if (req.body.profilePhotoUrl !== undefined) user.profilePhotoUrl = cleanString(req.body.profilePhotoUrl);
+
+    await user.save();
+    res.json({ user: publicUser(user) });
+  } catch (error) {
+    res.status(500).json({ error: error.message || 'Unable to update profile' });
+  }
 };
 
 exports.forgotPassword = async (req, res) => {
@@ -229,6 +300,9 @@ exports.updateUser = async (req, res) => {
       'studentAdmissionNo',
       'linkedStudentAdmissionNo',
       'permissions',
+      'profilePhotoUrl',
+      'campus',
+      'academicYear',
     ];
     for (const key of allowed) {
       if (updates[key] !== undefined) user[key] = updates[key];
@@ -256,6 +330,120 @@ exports.updateUser = async (req, res) => {
     res.json(publicUser(user));
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+};
+
+exports.createPasswordChangeRequest = async (req, res) => {
+  try {
+    if (req.user.role === 'superadmin') {
+      return res.status(400).json({ error: 'Superadmin passwords are changed directly from user management.' });
+    }
+
+    const currentPassword = String(req.body.currentPassword || '');
+    const newPassword = String(req.body.newPassword || '');
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current password and new password are required' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    }
+
+    const user = await User.findById(req.user._id).select('+password');
+    if (!user || !(await user.comparePassword(currentPassword))) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    const existingPending = await PasswordChangeRequest.findOne({ userId: user._id, status: 'pending' }).lean();
+    if (existingPending) {
+      return res.status(409).json({ error: 'A password change request is already pending approval' });
+    }
+
+    const requestedPasswordHash = await bcrypt.hash(newPassword, 12);
+    const request = await PasswordChangeRequest.create({
+      userId: user._id,
+      requestedBy: user._id,
+      requesterRole: user.role,
+      requestedPasswordHash,
+      approverRoles: hasAnyRole(user, ['admin']) ? ['superadmin'] : ['admin', 'superadmin'],
+      status: 'pending',
+      note: cleanString(req.body.note),
+      requestedAt: new Date(),
+    });
+
+    res.status(201).json(passwordRequestResponse(request, user));
+  } catch (error) {
+    res.status(500).json({ error: error.message || 'Unable to create password request' });
+  }
+};
+
+exports.listPasswordChangeRequests = async (req, res) => {
+  try {
+    const requests = await PasswordChangeRequest.find({}).sort({ createdAt: -1 }).lean();
+    const userIds = [...new Set(requests.map((item) => String(item.userId || '')).filter(Boolean))];
+    const reviewerIds = [...new Set(requests.map((item) => String(item.reviewedBy || '')).filter(Boolean))];
+    const users = userIds.length
+      ? await User.find({ _id: { $in: userIds } }).select('-password -otpHash').lean()
+      : [];
+    const reviewers = reviewerIds.length
+      ? await User.find({ _id: { $in: reviewerIds } }).select('-password -otpHash').lean()
+      : [];
+    const userById = new Map(users.map((user) => [String(user._id), user]));
+    const reviewerById = new Map(reviewers.map((user) => [String(user._id), user]));
+
+    const visible = requests
+      .filter((request) => canReviewPasswordRequest(req.user, userById.get(String(request.userId))))
+      .map((request) =>
+        passwordRequestResponse(
+          request,
+          userById.get(String(request.userId)),
+          reviewerById.get(String(request.reviewedBy))
+        )
+      )
+      .sort((a, b) => {
+        if (a.status === 'pending' && b.status !== 'pending') return -1;
+        if (a.status !== 'pending' && b.status === 'pending') return 1;
+        return new Date(b.createdAt || b.requestedAt || 0) - new Date(a.createdAt || a.requestedAt || 0);
+      });
+
+    res.json(visible);
+  } catch (error) {
+    res.status(500).json({ error: error.message || 'Unable to load password requests' });
+  }
+};
+
+exports.reviewPasswordChangeRequest = async (req, res) => {
+  try {
+    const nextStatus = cleanString(req.body.status).toLowerCase();
+    if (!['approved', 'rejected'].includes(nextStatus)) {
+      return res.status(400).json({ error: 'Status must be approved or rejected' });
+    }
+
+    const request = await PasswordChangeRequest.findById(req.params.id);
+    if (!request) return res.status(404).json({ error: 'Password request not found' });
+    if (request.status !== 'pending') {
+      return res.status(400).json({ error: 'This password request has already been reviewed' });
+    }
+
+    const user = await User.findById(request.userId).select('+password');
+    if (!user) return res.status(404).json({ error: 'Request user not found' });
+    if (!canReviewPasswordRequest(req.user, user)) {
+      return res.status(403).json({ error: 'You cannot review this password request' });
+    }
+
+    if (nextStatus === 'approved') {
+      user.password = request.requestedPasswordHash;
+      await user.save();
+    }
+
+    request.status = nextStatus;
+    request.reviewNote = cleanString(req.body.reviewNote);
+    request.reviewedBy = req.user._id;
+    request.reviewedAt = new Date();
+    await request.save();
+
+    res.json(passwordRequestResponse(request, user, req.user));
+  } catch (error) {
+    res.status(500).json({ error: error.message || 'Unable to review password request' });
   }
 };
 

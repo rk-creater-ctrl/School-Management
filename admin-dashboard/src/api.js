@@ -18,7 +18,11 @@ export const authAPI = {
   verifyOtp: (data) => api.post("/auth/verify-otp", data),
   forgotPassword: (data) => api.post("/auth/forgot-password", data),
   me: () => api.get("/auth/me"),
+  updateMe: (data) => api.patch("/auth/me", data),
   confirmPassword: (password) => api.post("/auth/confirm-password", { password }),
+  requestPasswordChange: (data) => api.post("/auth/password-change-requests", data),
+  listPasswordRequests: () => api.get("/auth/password-change-requests"),
+  reviewPasswordRequest: (id, data) => api.patch(`/auth/password-change-requests/${id}`, data),
   listUsers: () => api.get("/auth/users"),
   createUser: (data) => api.post("/auth/users", data),
   updateUser: (id, data) => api.put(`/auth/users/${id}`, data),
@@ -39,6 +43,11 @@ export const uploadsAPI = {
     const data = new FormData();
     data.append("image", file);
     return api.post("/uploads/image", data);
+  },
+  profilePhoto: (file) => {
+    const data = new FormData();
+    data.append("image", file);
+    return api.post("/uploads/profile-photo", data);
   },
 };
 
@@ -99,6 +108,9 @@ export const staffPayrollAPI = {
 
 export const staffDirectoryAPI = {
   getAll: () => api.get("/staff-directory"),
+  getProfile: (id) => api.get(`/staff-directory/${id}/profile`),
+  updateProfile: (id, data) => api.put(`/staff-directory/${id}/profile`, data),
+  getProgress: (id) => api.get(`/staff-directory/${id}/progress`),
   create: (data) => api.post("/staff-directory", data),
   update: (id, data) => api.put(`/staff-directory/${id}`, data),
   remove: (id, superadminPassword) => api.delete(`/staff-directory/${id}`, { data: { superadminPassword } }),

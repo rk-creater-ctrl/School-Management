@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Edit3, Plus, Trash2, Users, X } from "lucide-react";
-import { staffDirectoryAPI } from "../api";
-import { getStoredUser } from "../permissions";
+import { Activity, Edit3, Plus, Save, Trash2, Upload, UserRound, Users, X } from "lucide-react";
+import { staffDirectoryAPI, uploadsAPI } from "../api";
+import { canUseRole, getStoredUser } from "../permissions";
 import { formatCurrency } from "../utils/feeReports";
 
 const roleOptions = ["admin", "teacher", "accountant", "librarian", "staff"];
@@ -30,6 +30,7 @@ const emptyForm = {
 function StaffDirectoryPage() {
   const currentUser = getStoredUser();
   const isSuperadmin = currentUser?.role === "superadmin";
+  const canInspectStaff = canUseRole(["superadmin", "admin"], currentUser);
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("");
@@ -37,6 +38,14 @@ function StaffDirectoryPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState(null);
   const [form, setForm] = useState(emptyForm);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileStaff, setProfileStaff] = useState(null);
+  const [profileForm, setProfileForm] = useState(null);
+  const [profileStatus, setProfileStatus] = useState("");
+  const [profileUploading, setProfileUploading] = useState(false);
+  const [progressOpen, setProgressOpen] = useState(false);
+  const [progressData, setProgressData] = useState(null);
+  const [progressStatus, setProgressStatus] = useState("");
 
   useEffect(() => {
     loadStaff();
@@ -107,8 +116,61 @@ function StaffDirectoryPage() {
     setFormOpen(true);
   }
 
+  async function openProfile(item) {
+    if (!canInspectStaff) return;
+    setProfileOpen(true);
+    setProfileStaff(item);
+    setProfileForm(null);
+    setProfileStatus("Loading profile.");
+
+    try {
+      const res = await staffDirectoryAPI.getProfile(item._id || item.id);
+      setProfileForm({
+        ...(res.data || {}),
+        subjectsText: (res.data?.subjects || []).join(", "),
+      });
+      setProfileStatus("");
+    } catch (error) {
+      setProfileStatus(error.response?.data?.error || "Unable to load profile.");
+    }
+  }
+
+  async function openProgress(item) {
+    if (!canInspectStaff) return;
+    setProgressOpen(true);
+    setProgressData(null);
+    setProgressStatus("Loading progress.");
+
+    try {
+      const res = await staffDirectoryAPI.getProgress(item._id || item.id);
+      setProgressData(res.data || null);
+      setProgressStatus("");
+    } catch (error) {
+      setProgressStatus(error.response?.data?.error || "Unable to load progress.");
+    }
+  }
+
   function updateForm(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function updateProfileForm(field, value) {
+    setProfileForm((current) => ({ ...current, [field]: value }));
+    setProfileStatus("");
+  }
+
+  async function uploadProfilePhoto(file) {
+    if (!file) return;
+    try {
+      setProfileUploading(true);
+      const res = await uploadsAPI.profilePhoto(file);
+      updateProfileForm("profilePhotoUrl", res.data.fileUrl);
+      setProfileStatus("Photo uploaded. Save profile to keep it.");
+    } catch (error) {
+      setProfileStatus(error.response?.data?.error || "Unable to upload photo.");
+    } finally {
+      setProfileUploading(false);
+    }
   }
 
   async function requestPassword(action) {
@@ -145,6 +207,27 @@ function StaffDirectoryPage() {
       await loadStaff();
     } catch (error) {
       setStatus(error.response?.data?.error || "Unable to save staff.");
+    }
+  }
+
+  async function saveStaffProfile(event) {
+    event.preventDefault();
+    if (!profileStaff || !profileForm) return;
+
+    try {
+      const payload = {
+        ...profileForm,
+        subjects: String(profileForm.subjectsText || "")
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean),
+      };
+      delete payload.subjectsText;
+      await staffDirectoryAPI.updateProfile(profileStaff._id || profileStaff.id, payload);
+      setProfileStatus("Profile updated.");
+      await loadStaff();
+    } catch (error) {
+      setProfileStatus(error.response?.data?.error || "Unable to save profile.");
     }
   }
 
@@ -213,8 +296,13 @@ function StaffDirectoryPage() {
               <tr key={item._id || item.id}>
                 <td>{item.employeeCode || "-"}</td>
                 <td>
-                  <strong>{item.name}</strong>
-                  <span>{item.username || item.email}</span>
+                  <div className="staff-person-cell">
+                    <StaffAvatar staff={item} />
+                    <div>
+                      <strong>{item.name}</strong>
+                      <span>{item.username || item.email}</span>
+                    </div>
+                  </div>
                 </td>
                 <td>{item.role}</td>
                 <td>{item.payrollCategory}</td>
@@ -229,14 +317,28 @@ function StaffDirectoryPage() {
                 <td>{formatCurrency(item.monthlySalary || 0)}</td>
                 <td>{item.status}</td>
                 <td>
-                  {isSuperadmin ? (
+                  {canInspectStaff || isSuperadmin ? (
                     <div className="table-action-group">
-                      <button className="icon-button table-icon-action" type="button" onClick={() => openEdit(item)} aria-label="Edit staff">
-                        <Edit3 size={15} />
-                      </button>
-                      <button className="icon-button table-icon-action danger" type="button" onClick={() => deleteStaff(item)} aria-label="Delete staff">
-                        <Trash2 size={15} />
-                      </button>
+                      {canInspectStaff && (
+                        <>
+                          <button className="icon-button table-icon-action" type="button" onClick={() => openProfile(item)} aria-label="Open staff profile" title="Profile">
+                            <UserRound size={15} />
+                          </button>
+                          <button className="icon-button table-icon-action" type="button" onClick={() => openProgress(item)} aria-label="Check staff progress" title="Check progress">
+                            <Activity size={15} />
+                          </button>
+                        </>
+                      )}
+                      {isSuperadmin && (
+                        <>
+                          <button className="icon-button table-icon-action" type="button" onClick={() => openEdit(item)} aria-label="Edit staff" title="Edit staff">
+                            <Edit3 size={15} />
+                          </button>
+                          <button className="icon-button table-icon-action danger" type="button" onClick={() => deleteStaff(item)} aria-label="Delete staff" title="Delete staff">
+                            <Trash2 size={15} />
+                          </button>
+                        </>
+                      )}
                     </div>
                   ) : (
                     "-"
@@ -304,7 +406,157 @@ function StaffDirectoryPage() {
           </form>
         </div>
       )}
+
+      {profileOpen && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true">
+          <form className="modal-card staff-profile-modal" onSubmit={saveStaffProfile}>
+            <div className="section-heading">
+              <div>
+                <span className="eyebrow">Staff Profile</span>
+                <h3>{profileStaff?.name || "Profile"}</h3>
+              </div>
+              <button className="icon-button" type="button" onClick={() => setProfileOpen(false)} aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+
+            {profileStatus && <div className="inline-alert">{profileStatus}</div>}
+
+            {profileForm && (
+              <>
+                <div className="staff-profile-photo-row">
+                  <StaffAvatar staff={profileForm} large />
+                  <label className="secondary-button profile-photo-button">
+                    <Upload size={16} /> {profileUploading ? "Uploading" : "Upload Photo"}
+                    <input
+                      accept="image/png,image/jpeg,image/webp,image/gif"
+                      hidden
+                      type="file"
+                      onChange={(event) => uploadProfilePhoto(event.target.files?.[0])}
+                    />
+                  </label>
+                </div>
+
+                <div className="form-grid">
+                  <Field label="Name" value={profileForm.name} onChange={(value) => updateProfileForm("name", value)} required />
+                  <Field label="Email" type="email" value={profileForm.email} onChange={(value) => updateProfileForm("email", value)} required />
+                  <Field label="Mobile" value={profileForm.phone} onChange={(value) => updateProfileForm("phone", value.replace(/\D/g, "").slice(0, 10))} />
+                  <Field label="Employee code" value={profileForm.employeeCode} onChange={(value) => updateProfileForm("employeeCode", value.toUpperCase())} />
+                  <Field label="Department" value={profileForm.department} onChange={(value) => updateProfileForm("department", value)} />
+                  <Field label="Designation" value={profileForm.designation} onChange={(value) => updateProfileForm("designation", value)} />
+                  <Field label="Qualification" value={profileForm.qualification} onChange={(value) => updateProfileForm("qualification", value)} />
+                  <Field label="Experience years" type="number" value={profileForm.experienceYears} onChange={(value) => updateProfileForm("experienceYears", value)} />
+                  <Field label="Alternate phone" value={profileForm.alternatePhone} onChange={(value) => updateProfileForm("alternatePhone", value.replace(/\D/g, "").slice(0, 10))} />
+                  <Field label="Subjects" value={profileForm.subjectsText} onChange={(value) => updateProfileForm("subjectsText", value)} />
+                  <TextArea label="Address" value={profileForm.address} onChange={(value) => updateProfileForm("address", value)} />
+                  <TextArea label="About" value={profileForm.about} onChange={(value) => updateProfileForm("about", value)} />
+                </div>
+
+                <button className="primary-button" type="submit"><Save size={18} /> Save Profile</button>
+              </>
+            )}
+          </form>
+        </div>
+      )}
+
+      {progressOpen && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true">
+          <article className="modal-card staff-progress-modal">
+            <div className="section-heading">
+              <div>
+                <span className="eyebrow">Check Progress</span>
+                <h3>{progressData?.staff?.name || "Staff Progress"}</h3>
+              </div>
+              <button className="icon-button" type="button" onClick={() => setProgressOpen(false)} aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+
+            {progressStatus && <div className="inline-alert">{progressStatus}</div>}
+
+            {progressData && (
+              <>
+                <section className="stats-grid compact">
+                  <ProgressMetric label="Records" value={progressData.summary?.totalRecords || 0} />
+                  <ProgressMetric label="Submitted" value={progressData.summary?.submittedRecords || 0} />
+                  <ProgressMetric label="Reviewed" value={progressData.summary?.reviewedRecords || 0} />
+                  <ProgressMetric label="Completed" value={progressData.summary?.completedPeriods || 0} />
+                </section>
+
+                <div className="staff-progress-context">
+                  <span>Classes: {progressData.summary?.classes?.join(", ") || "-"}</span>
+                  <span>Subjects: {progressData.summary?.subjects?.join(", ") || "-"}</span>
+                </div>
+
+                <div className="responsive-table staff-progress-table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Class</th>
+                        <th>Work</th>
+                        <th>Students</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(progressData.records || []).map((record) => (
+                        <tr key={record._id || record.id}>
+                          <td>{formatDate(record.date)}</td>
+                          <td>
+                            <strong>{record.className || "-"}</strong>
+                            <span>{record.subject || "-"}</span>
+                          </td>
+                          <td>
+                            <strong>{record.taughtToday || record.chapter || record.lessonPlan || "-"}</strong>
+                            {record.homeworkText && <span>Homework: {record.homeworkText}</span>}
+                            {record.notes && <span>{record.notes}</span>}
+                          </td>
+                          <td>
+                            <strong>Copy: {formatStudentList(record.copySubmittedStudents)}</strong>
+                            <span>Exam copy: {formatStudentList(record.examCopyTakenStudents)}</span>
+                            {record.copyNaStudentRecords?.length > 0 && (
+                              <span>NA: {record.copyNaStudentRecords.map((item) => item.studentName || item.name).filter(Boolean).join(", ")}</span>
+                            )}
+                          </td>
+                          <td>
+                            <strong>{record.periodStatus || "pending"}</strong>
+                            <span>{record.reviewStatus || "draft"}</span>
+                          </td>
+                        </tr>
+                      ))}
+                      {progressData.records?.length === 0 && (
+                        <tr>
+                          <td colSpan="5">No progress records submitted yet.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </article>
+        </div>
+      )}
     </div>
+  );
+}
+
+function StaffAvatar({ large = false, staff }) {
+  return (
+    <span className={large ? "staff-avatar large" : "staff-avatar"}>
+      {staff?.profilePhotoUrl ? <img src={staff.profilePhotoUrl} alt="" /> : <UserRound size={large ? 28 : 17} />}
+    </span>
+  );
+}
+
+function ProgressMetric({ label, value }) {
+  return (
+    <article className="metric-card">
+      <div className="metric-icon"><Activity size={20} /></div>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </article>
   );
 }
 
@@ -313,6 +565,15 @@ function Field({ label, onChange, required, type = "text", value }) {
     <label className="field">
       <span>{label}</span>
       <input type={type} value={value || ""} onChange={(event) => onChange(event.target.value)} required={required} />
+    </label>
+  );
+}
+
+function TextArea({ label, onChange, value }) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <textarea rows={3} value={value || ""} onChange={(event) => onChange(event.target.value)} />
     </label>
   );
 }
@@ -326,6 +587,20 @@ function Select({ label, onChange, options, value }) {
       </select>
     </label>
   );
+}
+
+function formatDate(value) {
+  if (!value) return "-";
+  return new Date(value).toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function formatStudentList(students = []) {
+  if (!students.length) return "-";
+  return students.map((student) => student.name || student.admissionNo).filter(Boolean).join(", ");
 }
 
 export default StaffDirectoryPage;

@@ -27,6 +27,7 @@ import {
   Users,
   UserCog,
   UserCheck,
+  UserRound,
   X,
 } from "lucide-react";
 import { authAPI, erpAPI } from "../api";
@@ -196,8 +197,13 @@ function AdminLayout() {
               {notifications.length > 0 && <span className="notification-dot" />}
             </button>
             <button className="user-chip user-chip-button" type="button" onClick={() => navigate("/profile")}>
-              <span>{currentUser.name}</span>
-              <small>{currentUser.role}</small>
+              <span className="user-chip-avatar">
+                {currentUser.profilePhotoUrl ? <img src={currentUser.profilePhotoUrl} alt="" /> : <UserRound size={17} />}
+              </span>
+              <span className="user-chip-text">
+                <span>{currentUser.name}</span>
+                <small>{currentUser.role}</small>
+              </span>
             </button>
             <button className="icon-button" onClick={signOut} aria-label="Sign out">
               <LogOut size={18} />

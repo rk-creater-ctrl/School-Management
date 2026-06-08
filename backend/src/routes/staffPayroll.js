@@ -152,6 +152,7 @@ async function buildEmployees(users, monthInput) {
       phone: profile?.alternatePhone || user.phone || "",
       role: user.role,
       status: user.status,
+      profilePhotoUrl: user.profilePhotoUrl || "",
       employeeCode: payroll?.employeeCode || profile?.employeeCode || `${roleLabel(user.role).slice(0, 4).toUpperCase()}-${String(user._id).slice(-6).toUpperCase()}`,
       payrollCategory: payroll?.payrollCategory || (user.role === "teacher" ? "Skilled" : "Skilled"),
       department: payroll?.department || profile?.department || (user.role === "teacher" ? "Teaching Staff" : roleLabel(user.role)),
@@ -171,7 +172,7 @@ router.get("/employees", auth, authorize("superadmin", "accountant"), async (req
   try {
     const monthInput = getMonthInput(req.query);
     const users = await User.find({ role: { $in: EMPLOYEE_ROLES }, status: { $ne: "suspended" } })
-      .select("name email phone role status")
+      .select("name email phone role status profilePhotoUrl")
       .sort({ role: 1, name: 1 })
       .lean();
 
@@ -189,7 +190,7 @@ router.get("/employees/:userId", auth, authorize("superadmin", "accountant"), as
   try {
     const monthInput = getMonthInput(req.query);
     const user = await User.findOne({ _id: req.params.userId, role: { $in: EMPLOYEE_ROLES }, status: { $ne: "suspended" } })
-      .select("name email phone role status")
+      .select("name email phone role status profilePhotoUrl")
       .lean();
 
     if (!user) return res.status(404).json({ error: "Staff account not found" });

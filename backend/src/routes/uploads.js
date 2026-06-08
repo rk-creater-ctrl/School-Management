@@ -35,7 +35,7 @@ const imageUpload = multer({
 
 router.use(auth);
 
-router.post('/image', authorize('superadmin'), (req, res) => {
+function handleImageUpload(req, res) {
   imageUpload.single('image')(req, res, (error) => {
     if (error) {
       return res.status(400).json({ error: error.message || 'Image upload failed' });
@@ -51,6 +51,9 @@ router.post('/image', authorize('superadmin'), (req, res) => {
       size: req.file.size,
     });
   });
-});
+}
+
+router.post('/image', authorize('superadmin'), handleImageUpload);
+router.post('/profile-photo', handleImageUpload);
 
 module.exports = router;
