@@ -979,9 +979,18 @@ function ReceiptModal({ onClose, receipt, student }) {
   );
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(() => createReceiptDraft(receipt, receiptLines));
-  const feeAmount = draft.lines.reduce((sum, line) => sum + Number(line.feeAmount || 0), 0);
-  const paidAmount = draft.lines.reduce((sum, line) => sum + Number(line.amount || 0), 0);
-  const discountAmount = draft.lines.reduce((sum, line) => sum + Number(line.discountAmount || 0), 0);
+  const lateFeeAmount = draft.includeLateFees
+    ? draft.lines.reduce((sum, line) => sum + Number(line.lateFeeAmount || 0), 0)
+    : 0;
+  const feeAmount = draft.lines.reduce(
+    (sum, line) => sum + getReceiptLineFeeAmount(line, draft.includeLateFees),
+    0
+  );
+  const paidAmount = draft.lines.reduce(
+    (sum, line) => sum + getReceiptLinePaidAmount(line, draft.includeLateFees),
+    0
+  );
+  const discountAmount = Number(draft.discountAmount || 0);
   const paidDate = parseDateInput(draft.paidDate);
 
   function updateDraft(field, value) {
@@ -1025,6 +1034,18 @@ function ReceiptModal({ onClose, receipt, student }) {
                   {paymentMethodOptions.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
                 </select>
               </label>
+              <label className="field">
+                <span>Discount</span>
+                <input type="number" min="0" value={draft.discountAmount} onChange={(event) => updateDraft("discountAmount", event.target.value)} />
+              </label>
+              <label className="checkbox-field receipt-late-toggle">
+                <input
+                  checked={draft.includeLateFees}
+                  onChange={(event) => updateDraft("includeLateFees", event.target.checked)}
+                  type="checkbox"
+                />
+                <span>Include late fees</span>
+              </label>
             </div>
 
             <div className="receipt-edit-lines">
@@ -1037,10 +1058,6 @@ function ReceiptModal({ onClose, receipt, student }) {
                   <label className="field">
                     <span>Period</span>
                     <input value={line.period} onChange={(event) => updateLine(index, "period", event.target.value)} />
-                  </label>
-                  <label className="field">
-                    <span>Discount</span>
-                    <input type="number" min="0" value={line.discountAmount} onChange={(event) => updateLine(index, "discountAmount", event.target.value)} />
                   </label>
                   <label className="field">
                     <span>Paid amount</span>
@@ -1113,7 +1130,6 @@ function ReceiptModal({ onClose, receipt, student }) {
                 <th>Particulars</th>
                 <th>Period</th>
                 <th>Fee</th>
-                <th>Discount</th>
                 <th>Paid Amount</th>
               </tr>
             </thead>
@@ -1122,23 +1138,28 @@ function ReceiptModal({ onClose, receipt, student }) {
                 <tr key={line.id || index}>
                   <td>{line.label}</td>
                   <td>{line.period}</td>
-                  <td>{formatCurrency(line.feeAmount)}</td>
-                  <td>{Number(line.discountAmount || 0) ? formatCurrency(line.discountAmount) : "-"}</td>
-                  <td>{formatCurrency(line.amount)}</td>
+                  <td>{formatCurrency(getReceiptLineFeeAmount(line, draft.includeLateFees))}</td>
+                  <td>{formatCurrency(getReceiptLinePaidAmount(line, draft.includeLateFees))}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr>
-                <td colSpan="4">Total Fee</td>
+                <td colSpan="3">Total Fee</td>
                 <td>{formatCurrency(feeAmount)}</td>
               </tr>
+              {draft.includeLateFees && lateFeeAmount > 0 && (
+                <tr>
+                  <td colSpan="3">Late Fees</td>
+                  <td>{formatCurrency(lateFeeAmount)}</td>
+                </tr>
+              )}
               <tr>
-                <td colSpan="4">Discount</td>
+                <td colSpan="3">Discount</td>
                 <td>{discountAmount ? formatCurrency(discountAmount) : "-"}</td>
               </tr>
               <tr>
-                <td colSpan="4">Total Paid Amount</td>
+                <td colSpan="3">Total Amount</td>
                 <td>{formatCurrency(paidAmount)}</td>
               </tr>
             </tfoot>
@@ -1200,13 +1221,12 @@ function useReceiptSchoolBranding() {
 
 function createReceiptDraft(receipt, receiptLines) {
   const lines = receiptLines.map((line) => {
-    const feeAmount = Number(line.baseAmount || line.amount || 0) + Number(line.lateFeeAmount || 0);
     return {
       id: line.id,
       label: line.label || "Fee",
       period: line.period || "-",
-      feeAmount,
-      discountAmount: Number(line.concessionAmount || 0),
+      baseAmount: Number(line.baseAmount || line.amount || 0),
+      lateFeeAmount: Number(line.lateFeeAmount || 0),
       amount: Number(line.amount || 0),
     };
   });
@@ -1215,9 +1235,21 @@ function createReceiptDraft(receipt, receiptLines) {
     receiptNo: receipt.receiptNo || "",
     paidDate: toDateInputValue(receipt.paidDate),
     paymentMode: receipt.paymentMode || "Cash",
+    discountAmount: String(receiptLines.reduce((sum, line) => sum + Number(line.concessionAmount || 0), 0)),
+    includeLateFees: false,
     note: mergeReceiptNotes(receipt, receiptLines),
     lines,
   };
+}
+
+function getReceiptLineFeeAmount(line, includeLateFees) {
+  return Number(line.baseAmount || 0) + (includeLateFees ? Number(line.lateFeeAmount || 0) : 0);
+}
+
+function getReceiptLinePaidAmount(line, includeLateFees) {
+  const paidAmount = Number(line.amount || 0);
+  if (includeLateFees) return paidAmount;
+  return Math.max(0, paidAmount - Number(line.lateFeeAmount || 0));
 }
 
 function mergeReceiptNotes(receipt, receiptLines) {

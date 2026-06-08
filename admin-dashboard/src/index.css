@@ -1151,8 +1151,12 @@ option {
 }
 .receipt-edit-line {
   display: grid;
-  grid-template-columns: minmax(150px, 1.4fr) minmax(105px, .8fr) minmax(105px, .75fr) minmax(115px, .75fr);
+  grid-template-columns: minmax(160px, 1.5fr) minmax(115px, .85fr) minmax(120px, .75fr);
   gap: 10px;
+}
+.receipt-late-toggle {
+  margin: 0;
+  min-height: 46px;
 }
 .receipt-print-area {
   width: min(148mm, 100%);
@@ -1228,6 +1232,8 @@ option {
 .receipt-info-grid strong { color: #0f172a; }
 .receipt-lines {
   width: 100%;
+  min-width: 0;
+  table-layout: fixed;
   border-collapse: collapse;
   margin: 14px 0 4px;
   font-size: 13px;
@@ -1237,6 +1243,9 @@ option {
   padding: 10px 12px;
   border: 1px solid #cbd5e1;
   text-align: left;
+  color: #0f172a;
+  background: #ffffff;
+  word-break: break-word;
 }
 .receipt-lines th {
   color: #334155;
