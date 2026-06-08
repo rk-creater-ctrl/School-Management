@@ -3514,7 +3514,6 @@ td { color: var(--text); }
 }
 
 @media print {
-  @page { size: A5 portrait; margin: 4mm; }
   body { background: white; }
   .sidebar, .topbar, .no-print { display: none !important; }
   .main-frame, .content-panel, .document-preview { display: block; padding: 0; margin: 0; width: 100%; border: 0; background: white; }
@@ -3527,7 +3526,7 @@ td { color: var(--text); }
     background: white !important;
   }
   body.receipt-printing {
-    width: 140mm;
+    width: 142mm;
     min-height: auto;
     overflow: visible !important;
   }
@@ -3540,12 +3539,14 @@ td { color: var(--text); }
   body.receipt-printing .receipt-print-area {
     position: static;
     inset: 0 auto auto 0;
-    width: 140mm;
-    height: 202mm;
+    width: 142mm;
+    height: 99mm;
     min-height: 0;
-    max-height: 202mm;
+    max-height: 99mm;
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
-    padding: 4mm;
+    padding: 2mm;
     border: 0;
     border-radius: 0;
     break-inside: avoid;
@@ -3553,93 +3554,93 @@ td { color: var(--text); }
     page-break-after: avoid;
   }
   body.receipt-printing .receipt-header {
-    gap: 8px;
-    padding-bottom: 3mm;
+    gap: 5px;
+    padding-bottom: 1.5mm;
   }
   body.receipt-printing .receipt-school-brand {
-    gap: 7px;
+    gap: 5px;
   }
   body.receipt-printing .receipt-school-brand img,
   body.receipt-printing .receipt-logo-fallback {
-    width: 36px;
-    height: 36px;
-    flex-basis: 36px;
+    width: 26px;
+    height: 26px;
+    flex-basis: 26px;
   }
   body.receipt-printing .receipt-header h2 {
     margin-top: 1px;
-    font-size: 17px;
+    font-size: 12px;
     line-height: 1.1;
   }
   body.receipt-printing .receipt-header span,
   body.receipt-printing .receipt-number span {
-    font-size: 9px;
+    font-size: 7px;
   }
   body.receipt-printing .receipt-number {
-    min-width: 34mm;
+    min-width: 30mm;
   }
   body.receipt-printing .receipt-number strong {
-    font-size: 10px;
+    font-size: 8px;
     word-break: break-word;
   }
   body.receipt-printing .receipt-info-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 2mm 4mm;
-    margin: 4mm 0 3mm;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1mm 2mm;
+    margin: 1.5mm 0 1.5mm;
   }
   body.receipt-printing .receipt-info-grid div {
     gap: 1px;
-    padding-bottom: 1.5mm;
+    padding-bottom: .8mm;
   }
   body.receipt-printing .receipt-info-grid span {
-    font-size: 8px;
+    font-size: 6.5px;
   }
   body.receipt-printing .receipt-info-grid strong {
-    font-size: 9.5px;
+    font-size: 7.5px;
     line-height: 1.2;
   }
   body.receipt-printing .receipt-lines {
-    margin: 3mm 0 2mm;
-    font-size: 9px;
+    margin: 1.5mm 0 1mm;
+    font-size: 7.2px;
     line-height: 1.15;
     break-inside: avoid;
     page-break-inside: avoid;
   }
   body.receipt-printing .receipt-lines th,
   body.receipt-printing .receipt-lines td {
-    padding: 1.6mm 2mm;
+    padding: .65mm 1mm;
   }
   body.receipt-printing .receipt-lines tr {
     break-inside: avoid;
     page-break-inside: avoid;
   }
   body.receipt-printing .receipt-note-box {
-    min-height: 13mm;
-    margin-top: 3mm;
-    padding: 2mm 2.5mm;
+    min-height: 8mm;
+    margin-top: 1.5mm;
+    padding: 1mm 1.5mm;
   }
   body.receipt-printing .receipt-note-box span,
   body.receipt-printing .receipt-signature span {
-    font-size: 8px;
+    font-size: 6.5px;
   }
   body.receipt-printing .receipt-note-box p {
-    min-height: 5mm;
-    font-size: 9px;
+    min-height: 3.5mm;
+    font-size: 7px;
     line-height: 1.25;
   }
   body.receipt-printing .receipt-footer {
-    gap: 8px;
-    margin-top: 4mm;
-    padding-top: 4mm;
-    font-size: 9px;
+    gap: 5px;
+    margin-top: auto;
+    padding-top: 1.8mm;
+    font-size: 7px;
     break-inside: avoid;
     page-break-inside: avoid;
   }
   body.receipt-printing .receipt-signature {
-    min-width: 34mm;
-    gap: 7mm;
+    min-width: 28mm;
+    gap: 3.5mm;
   }
   body.receipt-printing .receipt-signature strong {
-    padding-top: 1.5mm;
-    font-size: 9px;
+    padding-top: 1mm;
+    font-size: 7px;
   }
 }
