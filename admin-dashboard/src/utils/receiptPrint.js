@@ -1,7 +1,15 @@
 export function printReceiptOnly() {
   document.body.classList.add("receipt-printing");
-  window.print();
-  window.setTimeout(() => {
+
+  const cleanup = () => {
     document.body.classList.remove("receipt-printing");
-  }, 250);
+    window.removeEventListener("afterprint", cleanup);
+  };
+
+  window.addEventListener("afterprint", cleanup, { once: true });
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      window.print();
+    });
+  });
 }
