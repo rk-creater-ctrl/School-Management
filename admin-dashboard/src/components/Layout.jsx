@@ -41,6 +41,7 @@ const fallbackUser = {
   campus: "School ERP",
   academicYear: getCurrentAcademicYear(),
 };
+const notificationPollMs = 15000;
 
 function getStoredUser() {
   return { ...fallbackUser, ...getSessionUser({}) };
@@ -101,19 +102,34 @@ function AdminLayout() {
   const location = useLocation();
 
   useEffect(() => {
+    let active = true;
+
     authAPI
       .me()
       .then((res) => {
+        if (!active) return;
         const user = { ...fallbackUser, ...res.data.user };
         setCurrentUser(user);
         updateActiveUser(user);
       })
       .catch(() => {});
 
-    erpAPI
-      .analytics()
-      .then((res) => setNotifications(res.data.notifications || []))
-      .catch(() => setNotifications([]));
+    async function loadNotifications() {
+      try {
+        const res = await erpAPI.analytics();
+        if (active) setNotifications(res.data.notifications || []);
+      } catch {
+        if (active) setNotifications([]);
+      }
+    }
+
+    loadNotifications();
+    const timer = window.setInterval(loadNotifications, notificationPollMs);
+
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
   }, []);
 
   const visibleGroups = useMemo(

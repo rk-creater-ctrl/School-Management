@@ -7,6 +7,7 @@ import { requireSuperadminPassword } from "../utils/superadminGuard";
 const tabs = ["all", "unread", "notices", "fees", "system"];
 const readKey = "erp_read_notifications";
 const clearedKey = "erp_cleared_notifications";
+const notificationPollMs = 15000;
 
 function NotificationCenterPage() {
   const [items, setItems] = useState([]);
@@ -18,7 +19,9 @@ function NotificationCenterPage() {
   const [status, setStatus] = useState("Loading notifications...");
 
   useEffect(() => {
-    async function loadNotifications() {
+    let active = true;
+
+    async function loadNotifications(silent = false) {
       try {
         const [analyticsRes, noticeRes, feeRes] = await Promise.all([
           erpAPI.analytics().catch(() => ({ data: {} })),
@@ -26,18 +29,29 @@ function NotificationCenterPage() {
           feesAPI.getAll().catch(() => ({ data: [] })),
         ]);
 
+        if (!active) return;
         setItems([
           ...buildNoticeItems(noticeRes.data || []),
           ...buildFeeItems(feeRes.data || []),
           ...buildSystemItems(analyticsRes.data || {}),
         ]);
-        setStatus("");
+        setStatus((current) =>
+          silent && !["Loading notifications...", "Notifications unavailable."].includes(current)
+            ? current
+            : ""
+        );
       } catch {
-        setStatus("Notifications unavailable.");
+        if (active && !silent) setStatus("Notifications unavailable.");
       }
     }
 
     loadNotifications();
+    const timer = window.setInterval(() => loadNotifications(true), notificationPollMs);
+
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
   }, []);
 
   const filteredItems = useMemo(
