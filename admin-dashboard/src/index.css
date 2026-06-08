@@ -904,14 +904,15 @@ option {
   font-weight: 700;
 }
 .fee-payment-popover input,
-.fee-payment-popover select {
+.fee-payment-popover select,
+.fee-payment-popover textarea {
   min-height: 36px;
   width: 100%;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   color: #0f172a;
   background: #ffffff;
-  padding: 0 10px;
+  padding: 8px 10px;
 }
 .fee-payment-popover > div:last-child {
   display: flex;
@@ -1121,7 +1122,7 @@ option {
   backdrop-filter: blur(22px);
 }
 .receipt-modal {
-  width: min(680px, 100%);
+  width: min(760px, 100%);
   max-height: min(760px, 92vh);
   overflow: auto;
   display: grid;
@@ -1131,12 +1132,37 @@ option {
   border-radius: 8px;
   background: var(--panel-strong);
 }
+.receipt-edit-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255,255,255,.05);
+}
+.receipt-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.receipt-edit-lines {
+  display: grid;
+  gap: 10px;
+}
+.receipt-edit-line {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.4fr) minmax(105px, .8fr) minmax(105px, .75fr) minmax(115px, .75fr);
+  gap: 10px;
+}
 .receipt-print-area {
-  padding: 28px;
+  width: min(148mm, 100%);
+  min-height: 210mm;
+  padding: 10mm;
   color: #0f172a;
   background: #ffffff;
   border: 1px solid #d1d5db;
   border-radius: 8px;
+  margin: 0 auto;
 }
 .receipt-header {
   display: flex;
@@ -1145,6 +1171,28 @@ option {
   gap: 18px;
   padding-bottom: 14px;
   border-bottom: 2px solid #0f766e;
+}
+.receipt-school-brand {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.receipt-school-brand img,
+.receipt-logo-fallback {
+  width: 52px;
+  height: 52px;
+  flex: 0 0 52px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  object-fit: contain;
+  background: #f8fafc;
+}
+.receipt-logo-fallback {
+  display: grid;
+  place-items: center;
+  color: #0f766e;
+  font-weight: 900;
 }
 .receipt-header h2 { margin: 4px 0 0; color: #0f172a; }
 .receipt-header span {
@@ -1203,13 +1251,52 @@ option {
   font-weight: 800;
   background: #ecfdf5;
 }
+.receipt-note-box {
+  min-height: 58px;
+  display: grid;
+  gap: 5px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  color: #0f172a;
+  background: #f8fafc;
+}
+.receipt-note-box span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.receipt-note-box p {
+  min-height: 22px;
+  margin: 0;
+  white-space: pre-wrap;
+}
 .receipt-footer {
   display: flex;
   justify-content: space-between;
   gap: 20px;
-  padding-top: 34px;
+  margin-top: 28px;
+  padding-top: 24px;
   color: #475569;
   border-top: 1px solid #cbd5e1;
+}
+.receipt-signature {
+  min-width: 190px;
+  display: grid;
+  gap: 22px;
+  text-align: center;
+  color: #0f172a;
+}
+.receipt-signature span {
+  color: #475569;
+  font-size: 12px;
+}
+.receipt-signature strong {
+  padding-top: 7px;
+  border-top: 1px solid #475569;
 }
 .receipt-actions {
   display: flex;
@@ -3378,6 +3465,7 @@ td { color: var(--text); }
   .transport-student-toolbar .search-box { width: 100%; }
   .transport-pay-popover { position: static; width: 100%; }
   .transport-fee-summary { text-align: left; }
+  .receipt-edit-grid, .receipt-edit-line { grid-template-columns: 1fr; }
   .collection-grid { grid-template-columns: 1fr; }
   .notification-card { grid-template-columns: 22px 42px minmax(0, 1fr); }
   .notification-card .ghost-button { grid-column: 3; justify-self: start; }
@@ -3417,6 +3505,7 @@ td { color: var(--text); }
 }
 
 @media print {
+  @page { size: A5 portrait; margin: 8mm; }
   body { background: white; }
   .sidebar, .topbar, .no-print { display: none !important; }
   .main-frame, .content-panel, .document-preview { display: block; padding: 0; margin: 0; width: 100%; border: 0; background: white; }
@@ -3430,6 +3519,8 @@ td { color: var(--text); }
     position: absolute;
     inset: 0 auto auto 0;
     width: 100%;
+    min-height: auto;
+    padding: 0;
     border: 0;
     border-radius: 0;
   }

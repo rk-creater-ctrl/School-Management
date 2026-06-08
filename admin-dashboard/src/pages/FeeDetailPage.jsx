@@ -253,8 +253,7 @@ function FeeDetailPage() {
     // Open date picker UI under this button
     setActiveItemPick(null);
     setActiveMonthPick({ itemId, monthName });
-    const month = tuitionItem?.months?.find((item) => item.name === monthName);
-    setPaymentDraft(createPaymentDraft(getEntryBalanceAmount(month)));
+    setPaymentDraft(createPaymentDraft());
   }
 
   async function handleToggleItem(itemId, currentStatus) {
@@ -269,8 +268,7 @@ function FeeDetailPage() {
     // Open date picker for one-time item
     setActiveMonthPick(null);
     setActiveItemPick(itemId);
-    const item = otherItems.find((entry) => entry._id === itemId);
-    setPaymentDraft(createPaymentDraft(getEntryBalanceAmount(item)));
+    setPaymentDraft(createPaymentDraft());
   }
 
   async function confirmMonthDate() {
@@ -345,7 +343,7 @@ function FeeDetailPage() {
 
     setActiveGroupPick(group);
     setSelectedDate(todayInputDate());
-    setPaymentDraft(createPaymentDraft(group.balanceAmount));
+    setPaymentDraft(createPaymentDraft());
   }
 
   async function confirmGroupDate() {
@@ -875,7 +873,7 @@ function PaymentPopover({ draft, maxAmount, onCancel, onChange, onConfirm }) {
       </div>
       <label>
         <span>Paid amount</span>
-        <input type="number" min="1" value={draft.amount} onChange={(event) => update("amount", event.target.value)} />
+        <input type="number" min="1" value={draft.amount} onChange={(event) => update("amount", event.target.value)} placeholder="Enter amount" />
       </label>
       <label>
         <span>Concession / Discount</span>
@@ -893,7 +891,7 @@ function PaymentPopover({ draft, maxAmount, onCancel, onChange, onConfirm }) {
       </label>
       <label>
         <span>Note</span>
-        <input value={draft.note} onChange={(event) => update("note", event.target.value)} placeholder="Optional" />
+        <textarea value={draft.note} onChange={(event) => update("note", event.target.value)} placeholder="Optional" rows={2} />
       </label>
       <div>
         <button className="secondary-button" type="button" onClick={onCancel}>Cancel</button>
@@ -974,10 +972,30 @@ function FeeLedger({ ledgerRows, onReceipt }) {
 }
 
 function ReceiptModal({ onClose, receipt, student }) {
-  const schoolName = useReceiptSchoolName();
-  const receiptLines = receipt.lines?.length ? receipt.lines : [receipt];
-  const paidAmount = receipt.paidAmount ?? receipt.amount;
-  const paidDate = receipt.paidDate ? new Date(receipt.paidDate) : new Date();
+  const { logoUrl, schoolName } = useReceiptSchoolBranding();
+  const receiptLines = useMemo(
+    () => (receipt.lines?.length ? receipt.lines : [receipt]),
+    [receipt]
+  );
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState(() => createReceiptDraft(receipt, receiptLines));
+  const feeAmount = draft.lines.reduce((sum, line) => sum + Number(line.feeAmount || 0), 0);
+  const paidAmount = draft.lines.reduce((sum, line) => sum + Number(line.amount || 0), 0);
+  const discountAmount = draft.lines.reduce((sum, line) => sum + Number(line.discountAmount || 0), 0);
+  const paidDate = parseDateInput(draft.paidDate);
+
+  function updateDraft(field, value) {
+    setDraft((current) => ({ ...current, [field]: value }));
+  }
+
+  function updateLine(index, field, value) {
+    setDraft((current) => ({
+      ...current,
+      lines: current.lines.map((line, lineIndex) =>
+        lineIndex === index ? { ...line, [field]: value } : line
+      ),
+    }));
+  }
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
@@ -985,20 +1003,76 @@ function ReceiptModal({ onClose, receipt, student }) {
         <div className="section-heading no-print">
           <div>
             <span className="eyebrow">Receipt</span>
-            <h3>{receipt.receiptNo}</h3>
+            <h3>{draft.receiptNo}</h3>
           </div>
           <button className="icon-button" type="button" onClick={onClose}>x</button>
         </div>
 
+        {isEditing && (
+          <div className="receipt-edit-panel no-print">
+            <div className="receipt-edit-grid">
+              <label className="field">
+                <span>Receipt no.</span>
+                <input value={draft.receiptNo} onChange={(event) => updateDraft("receiptNo", event.target.value)} />
+              </label>
+              <label className="field">
+                <span>Paid date</span>
+                <input type="date" value={draft.paidDate} onChange={(event) => updateDraft("paidDate", event.target.value)} />
+              </label>
+              <label className="field">
+                <span>Payment medium</span>
+                <select value={draft.paymentMode} onChange={(event) => updateDraft("paymentMode", event.target.value)}>
+                  {paymentMethodOptions.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
+                </select>
+              </label>
+            </div>
+
+            <div className="receipt-edit-lines">
+              {draft.lines.map((line, index) => (
+                <div className="receipt-edit-line" key={line.id || index}>
+                  <label className="field">
+                    <span>Particulars</span>
+                    <input value={line.label} onChange={(event) => updateLine(index, "label", event.target.value)} />
+                  </label>
+                  <label className="field">
+                    <span>Period</span>
+                    <input value={line.period} onChange={(event) => updateLine(index, "period", event.target.value)} />
+                  </label>
+                  <label className="field">
+                    <span>Discount</span>
+                    <input type="number" min="0" value={line.discountAmount} onChange={(event) => updateLine(index, "discountAmount", event.target.value)} />
+                  </label>
+                  <label className="field">
+                    <span>Paid amount</span>
+                    <input type="number" min="0" value={line.amount} onChange={(event) => updateLine(index, "amount", event.target.value)} />
+                  </label>
+                </div>
+              ))}
+            </div>
+
+            <label className="field">
+              <span>Note</span>
+              <textarea value={draft.note} onChange={(event) => updateDraft("note", event.target.value)} rows={3} />
+            </label>
+          </div>
+        )}
+
         <article className="receipt-print-area">
           <header className="receipt-header">
-            <div>
-              <span>{schoolName}</span>
-              <h2>Fee Receipt</h2>
+            <div className="receipt-school-brand">
+              {logoUrl ? (
+                <img src={logoUrl} alt={`${schoolName} logo`} />
+              ) : (
+                <div className="receipt-logo-fallback">{getSchoolInitials(schoolName)}</div>
+              )}
+              <div>
+                <span>{schoolName}</span>
+                <h2>Fee Receipt</h2>
+              </div>
             </div>
             <div className="receipt-number">
               <span>Receipt No</span>
-              <strong>{receipt.receiptNo}</strong>
+              <strong>{draft.receiptNo || "-"}</strong>
             </div>
           </header>
 
@@ -1029,7 +1103,7 @@ function ReceiptModal({ onClose, receipt, student }) {
             </div>
             <div>
               <span>Payment Medium</span>
-              <strong>{receipt.paymentMode || "Cash"}</strong>
+              <strong>{draft.paymentMode || "Cash"}</strong>
             </div>
           </section>
 
@@ -1038,33 +1112,56 @@ function ReceiptModal({ onClose, receipt, student }) {
               <tr>
                 <th>Particulars</th>
                 <th>Period</th>
+                <th>Fee</th>
+                <th>Discount</th>
                 <th>Paid Amount</th>
               </tr>
             </thead>
             <tbody>
-              {receiptLines.map((line) => (
-                <tr key={line.id}>
+              {draft.lines.map((line, index) => (
+                <tr key={line.id || index}>
                   <td>{line.label}</td>
                   <td>{line.period}</td>
+                  <td>{formatCurrency(line.feeAmount)}</td>
+                  <td>{Number(line.discountAmount || 0) ? formatCurrency(line.discountAmount) : "-"}</td>
                   <td>{formatCurrency(line.amount)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr>
-                <td colSpan="2">Total Paid Amount</td>
+                <td colSpan="4">Total Fee</td>
+                <td>{formatCurrency(feeAmount)}</td>
+              </tr>
+              <tr>
+                <td colSpan="4">Discount</td>
+                <td>{discountAmount ? formatCurrency(discountAmount) : "-"}</td>
+              </tr>
+              <tr>
+                <td colSpan="4">Total Paid Amount</td>
                 <td>{formatCurrency(paidAmount)}</td>
               </tr>
             </tfoot>
           </table>
 
+          <section className="receipt-note-box">
+            <span>Note</span>
+            <p>{draft.note || " "}</p>
+          </section>
+
           <footer className="receipt-footer">
             <span>Amount received for the period shown above.</span>
-            <strong>Authorized Signature</strong>
+            <div className="receipt-signature">
+              <span>For {schoolName}</span>
+              <strong>Authorized Signatory</strong>
+            </div>
           </footer>
         </article>
 
         <div className="receipt-actions no-print">
+          <button className="secondary-button" type="button" onClick={() => setIsEditing((current) => !current)}>
+            {isEditing ? "Preview Receipt" : "Edit Receipt"}
+          </button>
           <button className="secondary-button" type="button" onClick={onClose}>Close</button>
           <button className="primary-button" type="button" onClick={printReceiptOnly}>Print Receipt</button>
         </div>
@@ -1073,8 +1170,8 @@ function ReceiptModal({ onClose, receipt, student }) {
   );
 }
 
-function useReceiptSchoolName() {
-  const [schoolName, setSchoolName] = useState("School");
+function useReceiptSchoolBranding() {
+  const [branding, setBranding] = useState({ logoUrl: "", schoolName: "School" });
 
   useEffect(() => {
     let active = true;
@@ -1083,7 +1180,13 @@ function useReceiptSchoolName() {
       .then((res) => {
         const settings = res.data?.[0]?.payload || {};
         const nextName = String(settings.schoolName || settings.shortName || "").trim();
-        if (active && nextName) setSchoolName(nextName);
+        const nextLogo = String(settings.logoUrl || "").trim();
+        if (active) {
+          setBranding({
+            logoUrl: nextLogo,
+            schoolName: nextName || "School",
+          });
+        }
       })
       .catch(() => {});
 
@@ -1092,7 +1195,57 @@ function useReceiptSchoolName() {
     };
   }, []);
 
-  return schoolName;
+  return branding;
+}
+
+function createReceiptDraft(receipt, receiptLines) {
+  const lines = receiptLines.map((line) => {
+    const feeAmount = Number(line.baseAmount || line.amount || 0) + Number(line.lateFeeAmount || 0);
+    return {
+      id: line.id,
+      label: line.label || "Fee",
+      period: line.period || "-",
+      feeAmount,
+      discountAmount: Number(line.concessionAmount || 0),
+      amount: Number(line.amount || 0),
+    };
+  });
+
+  return {
+    receiptNo: receipt.receiptNo || "",
+    paidDate: toDateInputValue(receipt.paidDate),
+    paymentMode: receipt.paymentMode || "Cash",
+    note: mergeReceiptNotes(receipt, receiptLines),
+    lines,
+  };
+}
+
+function mergeReceiptNotes(receipt, receiptLines) {
+  return [receipt.note, ...receiptLines.map((line) => line.note)]
+    .map((note) => String(note || "").trim())
+    .filter(Boolean)
+    .filter((note, index, notes) => notes.indexOf(note) === index)
+    .join("; ");
+}
+
+function toDateInputValue(value) {
+  return value ? todayInputDate(new Date(value)) : todayInputDate();
+}
+
+function parseDateInput(value) {
+  if (!value) return new Date();
+  const [yearPart, monthPart, dayPart] = value.split("-").map(Number);
+  if (!yearPart || !monthPart || !dayPart) return new Date(value);
+  return new Date(yearPart, monthPart - 1, dayPart);
+}
+
+function getSchoolInitials(schoolName) {
+  return String(schoolName || "School")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase() || "")
+    .join("") || "S";
 }
 
 function buildReceiptFromLedger(row, ledgerRows) {
