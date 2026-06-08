@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { erpAPI, feesAPI, studentsAPI } from "../api";
 import { extractFeeLedgerRows, formatCurrency } from "../utils/feeReports";
 import { requireRolePassword, requireSuperadminPassword } from "../utils/superadminGuard";
 import { getStoredUser } from "../permissions";
-import { printReceiptOnly } from "../utils/receiptPrint";
+import { downloadReceiptHtml, printReceiptOnly } from "../utils/receiptPrint";
 
 const paymentModes = [
   { value: "monthly", label: "Monthly" },
@@ -978,7 +978,9 @@ function ReceiptModal({ onClose, receipt, student }) {
     [receipt]
   );
   const [isEditing, setIsEditing] = useState(false);
+  const [printOrientation, setPrintOrientation] = useState("portrait");
   const [draft, setDraft] = useState(() => createReceiptDraft(receipt, receiptLines));
+  const receiptRef = useRef(null);
   const lateFeeAmount = draft.includeLateFees
     ? draft.lines.reduce((sum, line) => sum + Number(line.lateFeeAmount || 0), 0)
     : 0;
@@ -1004,6 +1006,13 @@ function ReceiptModal({ onClose, receipt, student }) {
         lineIndex === index ? { ...line, [field]: value } : line
       ),
     }));
+  }
+
+  function handleDownloadReceipt() {
+    downloadReceiptHtml(receiptRef.current, {
+      filename: draft.receiptNo || "fee-receipt",
+      orientation: printOrientation,
+    });
   }
 
   return (
@@ -1074,7 +1083,7 @@ function ReceiptModal({ onClose, receipt, student }) {
           </div>
         )}
 
-        <article className="receipt-print-area">
+        <article className={`receipt-print-area ${printOrientation}`} ref={receiptRef}>
           <header className="receipt-header">
             <div className="receipt-school-brand">
               {logoUrl ? (
@@ -1183,8 +1192,16 @@ function ReceiptModal({ onClose, receipt, student }) {
           <button className="secondary-button" type="button" onClick={() => setIsEditing((current) => !current)}>
             {isEditing ? "Preview Receipt" : "Edit Receipt"}
           </button>
+          <label className="receipt-print-layout">
+            <span>Print layout</span>
+            <select value={printOrientation} onChange={(event) => setPrintOrientation(event.target.value)}>
+              <option value="portrait">Portrait</option>
+              <option value="landscape">Landscape</option>
+            </select>
+          </label>
+          <button className="secondary-button" type="button" onClick={handleDownloadReceipt}>Download Receipt</button>
           <button className="secondary-button" type="button" onClick={onClose}>Close</button>
-          <button className="primary-button" type="button" onClick={printReceiptOnly}>Print Receipt</button>
+          <button className="primary-button" type="button" onClick={() => printReceiptOnly(printOrientation)}>Print Receipt</button>
         </div>
       </div>
     </div>

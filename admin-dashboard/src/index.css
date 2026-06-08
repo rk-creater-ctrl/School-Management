@@ -1168,6 +1168,10 @@ option {
   border-radius: 8px;
   margin: 0 auto;
 }
+.receipt-print-area.landscape {
+  width: min(210mm, 100%);
+  min-height: 148mm;
+}
 .receipt-header {
   display: flex;
   justify-content: space-between;
@@ -1309,8 +1313,27 @@ option {
 }
 .receipt-actions {
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
+}
+.receipt-print-layout {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+.receipt-print-layout select {
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--panel);
+  padding: 0 10px;
 }
 .staff-payroll-page {
   display: grid;
@@ -3526,9 +3549,12 @@ td { color: var(--text); }
     background: white !important;
   }
   body.receipt-printing {
-    width: 142mm;
+    width: 138mm;
     min-height: auto;
     overflow: visible !important;
+  }
+  body.receipt-printing.receipt-print-landscape {
+    width: 200mm;
   }
   body.receipt-printing .content-panel > :not(.modal-backdrop) {
     display: none !important;
@@ -3539,108 +3565,112 @@ td { color: var(--text); }
   body.receipt-printing .receipt-print-area {
     position: static;
     inset: 0 auto auto 0;
-    width: 142mm;
-    height: 99mm;
+    width: 138mm;
+    height: auto;
     min-height: 0;
-    max-height: 99mm;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    padding: 2mm;
+    max-height: none;
+    overflow: visible;
+    padding: 5mm;
     border: 0;
     border-radius: 0;
-    break-inside: avoid;
-    page-break-inside: avoid;
-    page-break-after: avoid;
+    break-inside: auto;
+    page-break-inside: auto;
+    page-break-after: auto;
+  }
+  body.receipt-printing.receipt-print-landscape .receipt-print-area {
+    width: 200mm;
   }
   body.receipt-printing .receipt-header {
-    gap: 5px;
-    padding-bottom: 1.5mm;
+    gap: 8px;
+    padding-bottom: 3mm;
   }
   body.receipt-printing .receipt-school-brand {
-    gap: 5px;
+    gap: 7px;
   }
   body.receipt-printing .receipt-school-brand img,
   body.receipt-printing .receipt-logo-fallback {
-    width: 26px;
-    height: 26px;
-    flex-basis: 26px;
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
   }
   body.receipt-printing .receipt-header h2 {
     margin-top: 1px;
-    font-size: 12px;
+    font-size: 16px;
     line-height: 1.1;
   }
   body.receipt-printing .receipt-header span,
   body.receipt-printing .receipt-number span {
-    font-size: 7px;
+    font-size: 8.5px;
   }
   body.receipt-printing .receipt-number {
-    min-width: 30mm;
+    min-width: 34mm;
   }
   body.receipt-printing .receipt-number strong {
-    font-size: 8px;
+    font-size: 9px;
     word-break: break-word;
   }
   body.receipt-printing .receipt-info-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 2mm 3mm;
+    margin: 3mm 0 2.5mm;
+  }
+  body.receipt-printing.receipt-print-landscape .receipt-info-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 1mm 2mm;
-    margin: 1.5mm 0 1.5mm;
   }
   body.receipt-printing .receipt-info-grid div {
     gap: 1px;
-    padding-bottom: .8mm;
+    padding-bottom: 1.2mm;
   }
   body.receipt-printing .receipt-info-grid span {
-    font-size: 6.5px;
+    font-size: 7.5px;
   }
   body.receipt-printing .receipt-info-grid strong {
-    font-size: 7.5px;
+    font-size: 8.8px;
     line-height: 1.2;
   }
   body.receipt-printing .receipt-lines {
-    margin: 1.5mm 0 1mm;
-    font-size: 7.2px;
+    margin: 2mm 0 1.5mm;
+    font-size: 8.2px;
     line-height: 1.15;
     break-inside: avoid;
     page-break-inside: avoid;
   }
   body.receipt-printing .receipt-lines th,
   body.receipt-printing .receipt-lines td {
-    padding: .65mm 1mm;
+    padding: 1mm 1.5mm;
   }
   body.receipt-printing .receipt-lines tr {
     break-inside: avoid;
     page-break-inside: avoid;
   }
   body.receipt-printing .receipt-note-box {
-    min-height: 8mm;
-    margin-top: 1.5mm;
-    padding: 1mm 1.5mm;
+    min-height: 12mm;
+    margin-top: 2mm;
+    padding: 1.5mm 2mm;
   }
   body.receipt-printing .receipt-note-box span,
   body.receipt-printing .receipt-signature span {
-    font-size: 6.5px;
+    font-size: 7.5px;
   }
   body.receipt-printing .receipt-note-box p {
-    min-height: 3.5mm;
-    font-size: 7px;
+    min-height: 4mm;
+    font-size: 8px;
     line-height: 1.25;
   }
   body.receipt-printing .receipt-footer {
-    gap: 5px;
-    margin-top: auto;
-    padding-top: 1.8mm;
-    font-size: 7px;
+    gap: 8px;
+    margin-top: 3mm;
+    padding-top: 3mm;
+    font-size: 8px;
     break-inside: avoid;
     page-break-inside: avoid;
   }
   body.receipt-printing .receipt-signature {
-    min-width: 28mm;
-    gap: 3.5mm;
+    min-width: 34mm;
+    gap: 5mm;
   }
   body.receipt-printing .receipt-signature strong {
-    padding-top: 1mm;
-    font-size: 7px;
+    padding-top: 1.2mm;
+    font-size: 8px;
   }
 }
