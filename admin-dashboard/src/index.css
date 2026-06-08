@@ -2662,6 +2662,20 @@ option {
 }
 .settings-summary strong { display: block; font-size: 34px; }
 .settings-summary span { color: var(--muted); }
+.settings-hero-actions,
+.settings-save-panel {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.settings-save-panel {
+  justify-content: space-between;
+}
+.settings-save-panel h3 {
+  margin: 4px 0 0;
+}
 .form-grid.single { grid-template-columns: 1fr; margin-top: 12px; }
 .settings-save-button { width: 100%; margin-top: 14px; }
 .logo-upload-field input[type="file"] {
@@ -3533,6 +3547,8 @@ td { color: var(--text); }
   .fees-toolbar .secondary-button { width: 100%; justify-content: center; }
   .fee-payment-modes, .fee-late-settings, .fee-schedule-card { grid-template-columns: 1fr; }
   .transport-hero-actions, .transport-year-field, .transport-hero-actions .primary-button { width: 100%; }
+  .settings-hero-actions, .settings-save-panel, .settings-hero-actions .primary-button, .settings-save-panel .primary-button { width: 100%; }
+  .settings-save-panel { align-items: stretch; flex-direction: column; }
   .transport-vehicle-grid, .transport-info-grid, .transport-detail-section.vehicle .transport-info-grid, .transport-crew-grid, .transport-picker-layout, .transport-assignment-panel { grid-template-columns: 1fr; }
   .transport-record-grid { grid-template-columns: 1fr; }
   .transport-crew-card { grid-template-columns: 1fr; }

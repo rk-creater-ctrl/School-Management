@@ -153,15 +153,20 @@ function SchoolSettingsPage() {
           <span className="eyebrow">Superadmin</span>
           <h2>School Settings</h2>
         </div>
-        <div className="settings-summary">
-          <strong>{setupCount}</strong>
-          <span>Master items</span>
+        <div className="settings-hero-actions">
+          <div className="settings-summary">
+            <strong>{setupCount}</strong>
+            <span>Master items</span>
+          </div>
+          <button className="primary-button" type="submit" form="school-settings-form">
+            <Save size={18} /> Save Settings
+          </button>
         </div>
       </section>
 
       {status && <div className="inline-alert">{status}</div>}
 
-      <form className="workspace-grid" onSubmit={saveSettings}>
+      <form className="workspace-grid" id="school-settings-form" onSubmit={saveSettings}>
         <article className="chart-card wide">
           <div className="section-heading">
             <div>
@@ -265,6 +270,16 @@ function SchoolSettingsPage() {
               />
             ))}
           </div>
+        </section>
+
+        <section className="chart-card wide settings-save-panel">
+          <div>
+            <span className="eyebrow">Save</span>
+            <h3>Save School Settings</h3>
+          </div>
+          <button className="primary-button" type="submit">
+            <Save size={18} /> Save Settings
+          </button>
         </section>
       </form>
     </div>
