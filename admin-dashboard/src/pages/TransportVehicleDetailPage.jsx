@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { transportAPI } from "../api";
 import AcademicYearSelect from "../components/AcademicYearSelect";
-import { getStoredUser } from "../permissions";
+import { canUseRole, getStoredUser } from "../permissions";
 import {
   StudentPickerModal,
   TransportReceiptModal,
@@ -15,9 +15,8 @@ function TransportVehicleDetailPage() {
   const { vehicleId } = useParams();
   const navigate = useNavigate();
   const currentUser = getStoredUser();
-  const role = currentUser?.role;
-  const canManage = ["superadmin", "admin", "staff"].includes(role);
-  const canCollect = ["superadmin", "accountant"].includes(role);
+  const canManage = canUseRole(["superadmin", "admin", "staff"], currentUser);
+  const canCollect = canUseRole(["superadmin", "accountant"], currentUser);
 
   const [academicYear, setAcademicYear] = useState(getCurrentAcademicYear());
   const [vehicleDetail, setVehicleDetail] = useState(null);

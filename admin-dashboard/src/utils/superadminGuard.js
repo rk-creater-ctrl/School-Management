@@ -1,5 +1,5 @@
 import { authAPI } from "../api";
-import { getStoredUser } from "../permissions";
+import { canUseRole, getStoredUser } from "../permissions";
 
 export async function requireSuperadminPassword(actionLabel = "continue") {
   return requireRolePassword(actionLabel, ["superadmin", "admin"]);
@@ -7,7 +7,7 @@ export async function requireSuperadminPassword(actionLabel = "continue") {
 
 export async function requireRolePassword(actionLabel = "continue", allowedRoles = ["superadmin", "admin"]) {
   const user = getStoredUser();
-  if (!allowedRoles.includes(user?.role)) {
+  if (!canUseRole(allowedRoles, user)) {
     alert(`Only ${allowedRoles.join(" or ")} can perform this action.`);
     return false;
   }

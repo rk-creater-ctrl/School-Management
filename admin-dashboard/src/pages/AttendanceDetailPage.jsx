@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams, Link } from "react-router-dom";
 import { attendanceAPI } from "../api";
-import { getStoredUser } from "../permissions";
+import { canUseRole, getStoredUser } from "../permissions";
 
 function useQuery() {
   const { search } = useLocation();
@@ -27,8 +27,8 @@ function AttendanceDetailPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const currentRole = getStoredUser()?.role;
-  const canManageAttendance = ["superadmin", "admin", "teacher"].includes(currentRole);
+  const currentUser = getStoredUser();
+  const canManageAttendance = canUseRole(["superadmin", "admin", "teacher"], currentUser);
 
   useEffect(() => {
     loadData();

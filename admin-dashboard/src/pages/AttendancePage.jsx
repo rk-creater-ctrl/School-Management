@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { studentsAPI, attendanceAPI } from "../api";
 import { Link, useSearchParams } from "react-router-dom";
 import { getAcademicYearOptions, getCurrentAcademicYearStart } from "../utils/academicYear";
-import { getStoredUser } from "../permissions";
+import { canUseRole, getStoredUser } from "../permissions";
 
 function AttendancePage() {
   const [searchParams] = useSearchParams();
@@ -23,8 +23,8 @@ function AttendancePage() {
   const [deviceCode, setDeviceCode] = useState("");
   const [deviceMessage, setDeviceMessage] = useState("");
   const [markDate, setMarkDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const currentRole = getStoredUser()?.role;
-  const canManageAttendance = ["superadmin", "admin", "teacher"].includes(currentRole);
+  const currentUser = getStoredUser();
+  const canManageAttendance = canUseRole(["superadmin", "admin", "teacher"], currentUser);
 
   useEffect(() => {
     loadBaseData();

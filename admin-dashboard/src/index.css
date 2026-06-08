@@ -2854,6 +2854,52 @@ option {
   align-items: center;
   gap: 7px;
 }
+.permission-panel {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+.permission-user-card {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255,255,255,.05);
+}
+.permission-user-card span {
+  color: var(--muted);
+  font-size: 13px;
+}
+.permission-option-list {
+  display: grid;
+  gap: 8px;
+}
+.permission-option {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255,255,255,.05);
+}
+.permission-option input {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  accent-color: #0ea5e9;
+}
+.permission-option strong,
+.permission-option small {
+  display: block;
+}
+.permission-option small {
+  margin-top: 3px;
+  color: var(--muted);
+  line-height: 1.35;
+}
 .user-edit-modal {
   width: min(760px, 100%);
 }

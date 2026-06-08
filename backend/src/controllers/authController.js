@@ -24,8 +24,15 @@ function publicUser(user) {
     linkedStudentId: user.linkedStudentId,
     studentAdmissionNo: user.studentAdmissionNo,
     linkedStudentAdmissionNo: user.linkedStudentAdmissionNo,
+    permissions: normalizePermissions(user.permissions),
     isEmailVerified: user.isEmailVerified,
   };
+}
+
+function normalizePermissions(permissions) {
+  return Array.isArray(permissions)
+    ? [...new Set(permissions.map((item) => String(item || '').toLowerCase().trim()).filter((item) => item && item !== 'superadmin'))]
+    : [];
 }
 
 exports.register = async (req, res) => {
@@ -140,7 +147,7 @@ exports.confirmPassword = async (req, res) => {
 
 exports.listUsers = async (req, res) => {
   try {
-    const filter = req.user.role === 'admin' ? { role: { $in: ['student', 'teacher'] } } : {};
+    const filter = req.user.role === 'superadmin' ? {} : { role: { $in: ['student', 'teacher'] } };
     const users = await User.find(filter).select('-password -otpHash').sort({ role: 1, name: 1 }).lean();
     res.json(users);
   } catch (error) {
@@ -161,10 +168,11 @@ exports.createUser = async (req, res) => {
       linkedStudentId,
       studentAdmissionNo,
       linkedStudentAdmissionNo,
+      permissions,
     } = req.body;
     const role = requestedRole || 'student';
 
-    if (req.user.role === 'admin' && !['student', 'teacher'].includes(role)) {
+    if (req.user.role !== 'superadmin' && !['student', 'teacher'].includes(role)) {
       return res.status(403).json({ error: 'Admin can create student and teacher accounts only' });
     }
 
@@ -187,6 +195,7 @@ exports.createUser = async (req, res) => {
       linkedStudentId,
       studentAdmissionNo,
       linkedStudentAdmissionNo,
+      permissions: req.user.role === 'superadmin' ? permissions : [],
     });
     await user.save();
     res.status(201).json(publicUser(user));
@@ -219,6 +228,7 @@ exports.updateUser = async (req, res) => {
       'linkedStudentId',
       'studentAdmissionNo',
       'linkedStudentAdmissionNo',
+      'permissions',
     ];
     for (const key of allowed) {
       if (updates[key] !== undefined) user[key] = updates[key];

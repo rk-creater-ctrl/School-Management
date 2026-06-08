@@ -28,7 +28,6 @@ const commandActions = [
 function DashboardPage() {
   const navigate = useNavigate();
   const currentUser = getStoredUser();
-  const currentRole = currentUser?.role;
   const [analytics, setAnalytics] = useState(null);
   const [studentsCount, setStudentsCount] = useState(0);
   const [classesCount, setClassesCount] = useState(0);
@@ -66,7 +65,7 @@ function DashboardPage() {
     { label: "Students", value: studentsCount.toLocaleString(), delta: "Active", icon: GraduationCap, tone: "blue" },
     { label: "Classes", value: classesCount.toLocaleString(), delta: "Running", icon: Users, tone: "green" },
     { label: "Attendance", value: `${campusHealth}%`, delta: "Average", icon: CheckCircle2, tone: "amber" },
-    ...(canUseRole(["superadmin", "accountant", "parent", "student"], { role: currentRole })
+    ...(canUseRole(["superadmin", "accountant", "parent", "student"], currentUser)
       ? [{ label: "Fees", value: formatCurrency(revenueTotal), delta: `${analytics?.totals?.feePlans || 0} plans`, icon: CircleDollarSign, tone: "rose" }]
       : []),
   ];

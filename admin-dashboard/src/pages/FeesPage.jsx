@@ -5,7 +5,7 @@ import { studentsAPI, feesAPI } from "../api";
 import { Link } from "react-router-dom";
 import AcademicYearSelect from "../components/AcademicYearSelect";
 import { getCurrentAcademicYear } from "../utils/academicYear";
-import { getStoredUser } from "../permissions";
+import { canUseRole, getStoredUser } from "../permissions";
 
 function FeesPage() {
   const [students, setStudents] = useState([]);
@@ -16,8 +16,8 @@ function FeesPage() {
   const [search, setSearch] = useState("");
   const [selectedClass, setSelectedClass] = useState("all");
   const [activeYear, setActiveYear] = useState(getCurrentAcademicYear());
-  const currentRole = getStoredUser()?.role;
-  const canOpenCollections = ["superadmin", "accountant"].includes(currentRole);
+  const currentUser = getStoredUser();
+  const canOpenCollections = canUseRole(["superadmin", "accountant"], currentUser);
 
   useEffect(() => {
     loadData();

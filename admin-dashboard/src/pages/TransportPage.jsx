@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { erpAPI, transportAPI } from "../api";
 import AcademicYearSelect from "../components/AcademicYearSelect";
-import { getStoredUser } from "../permissions";
+import { canUseRole, getStoredUser } from "../permissions";
 import { formatCurrency } from "../utils/feeReports";
 import { emptyVehicleForm, getCurrentAcademicYear } from "../utils/transport";
 import { printReceiptOnly } from "../utils/receiptPrint";
@@ -26,8 +26,7 @@ const statusOptions = ["Active", "Maintenance", "Inactive"];
 
 function TransportPage() {
   const currentUser = getStoredUser();
-  const role = currentUser?.role;
-  const canManage = ["superadmin", "admin", "staff"].includes(role);
+  const canManage = canUseRole(["superadmin", "admin", "staff"], currentUser);
   const navigate = useNavigate();
 
   const [academicYear, setAcademicYear] = useState(getCurrentAcademicYear());

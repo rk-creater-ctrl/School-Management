@@ -20,13 +20,24 @@ function getRole(user) {
   return normalize(user?.role);
 }
 
+function getEffectiveRoles(user) {
+  return [
+    user?.role,
+    ...(Array.isArray(user?.permissions) ? user.permissions : []),
+  ]
+    .map(normalize)
+    .filter((role, index) => index === 0 || role !== "superadmin")
+    .filter(Boolean);
+}
+
 function isSuperadmin(user) {
   return getRole(user) === "superadmin";
 }
 
 function hasAnyRole(user, roles = []) {
   if (isSuperadmin(user)) return true;
-  return roles.map(normalize).includes(getRole(user));
+  const allowedRoles = roles.map(normalize);
+  return getEffectiveRoles(user).some((role) => allowedRoles.includes(role));
 }
 
 function forbidden(message = "You do not have permission for this action") {

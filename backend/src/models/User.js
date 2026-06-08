@@ -11,6 +11,9 @@ module.exports = createModel("users", {
     if (data.linkedStudentAdmissionNo) data.linkedStudentAdmissionNo = String(data.linkedStudentAdmissionNo).trim();
     if (data.studentId) data.studentId = String(data.studentId).trim();
     if (data.linkedStudentId) data.linkedStudentId = String(data.linkedStudentId).trim();
+    data.permissions = Array.isArray(data.permissions)
+      ? [...new Set(data.permissions.map((item) => String(item || "").toLowerCase().trim()).filter((item) => item && item !== "superadmin"))]
+      : [];
     await hashUserPasswordIfNeeded(data);
   },
   methods: {

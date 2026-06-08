@@ -2,7 +2,7 @@ import { createElement, useCallback, useEffect, useMemo, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Banknote, CalendarDays, CheckCircle2, Save, UserRound, WalletCards } from "lucide-react";
 import { staffPayrollAPI } from "../api";
-import { getStoredUser } from "../permissions";
+import { canUseRole, getStoredUser } from "../permissions";
 import { formatCurrency } from "../utils/feeReports";
 
 const manageableRoles = ["superadmin", "accountant"];
@@ -15,7 +15,7 @@ function currentMonthKey() {
 
 function StaffPayrollPage() {
   const currentUser = getStoredUser();
-  const canManage = manageableRoles.includes(currentUser?.role);
+  const canManage = canUseRole(manageableRoles, currentUser);
   const { staffId } = useParams();
   const navigate = useNavigate();
   const [monthKey, setMonthKey] = useState(currentMonthKey);

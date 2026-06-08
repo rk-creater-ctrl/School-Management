@@ -3,7 +3,7 @@ import { useParams, Link, useSearchParams } from "react-router-dom";
 import { erpAPI, feesAPI, studentsAPI } from "../api";
 import { extractFeeLedgerRows, formatCurrency } from "../utils/feeReports";
 import { requireRolePassword, requireSuperadminPassword } from "../utils/superadminGuard";
-import { getStoredUser } from "../permissions";
+import { canUseRole, getStoredUser } from "../permissions";
 import { downloadReceiptHtml, printReceiptOnly } from "../utils/receiptPrint";
 import { getSchoolNameForClass } from "../utils/branding";
 
@@ -52,9 +52,9 @@ const nextYearMonths = new Set(["January", "February", "March"]);
 function FeeDetailPage() {
   const { studentId, year } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
-  const currentRole = getStoredUser()?.role;
-  const isSuperadmin = currentRole === "superadmin";
-  const canManageFees = ["superadmin", "accountant"].includes(currentRole);
+  const currentUser = getStoredUser();
+  const isSuperadmin = currentUser?.role === "superadmin";
+  const canManageFees = canUseRole(["superadmin", "accountant"], currentUser);
 
   const [student, setStudent] = useState(null);
   const [plan, setPlan] = useState(null);

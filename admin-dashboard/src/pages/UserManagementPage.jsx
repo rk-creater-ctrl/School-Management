@@ -1,9 +1,36 @@
 import { useEffect, useMemo, useState } from "react";
-import { Crown, Edit3, GraduationCap, Save, Trash2, UserPlus, X } from "lucide-react";
+import { Crown, Edit3, GraduationCap, Save, ShieldCheck, Trash2, UserPlus, X } from "lucide-react";
 import { authAPI } from "../api";
-import { getStoredUser } from "../permissions";
+import { getStoredUser, normalizePermissions } from "../permissions";
 
 const roleOptions = ["superadmin", "admin", "teacher", "student", "parent", "accountant", "librarian", "staff"];
+const permissionOptions = [
+  {
+    value: "admin",
+    label: "Admin tools",
+    detail: "Students, classes, attendance, notices, website leads, and transport admin access.",
+  },
+  {
+    value: "teacher",
+    label: "Teacher tools",
+    detail: "Teacher desk, classes, attendance, exams, LMS, and teacher notices.",
+  },
+  {
+    value: "accountant",
+    label: "Accounts tools",
+    detail: "Fees, collections, staff payroll, and transport fee collection.",
+  },
+  {
+    value: "staff",
+    label: "Staff tools",
+    detail: "Documents, admissions, website leads, notices, transport, and inventory.",
+  },
+  {
+    value: "librarian",
+    label: "Library tools",
+    detail: "Library workspace access.",
+  },
+];
 
 function UserManagementPage() {
   const currentUser = getStoredUser();
@@ -21,6 +48,11 @@ function UserManagementPage() {
     role: "student",
     status: "active",
     password: "",
+    superadminPassword: "",
+  });
+  const [permissionForm, setPermissionForm] = useState({
+    userId: "",
+    permissions: [],
     superadminPassword: "",
   });
   const [form, setForm] = useState({
@@ -46,11 +78,27 @@ function UserManagementPage() {
       }, {}),
     [users]
   );
+  const selectedPermissionUser = useMemo(
+    () => users.find((user) => getUserId(user) === permissionForm.userId) || null,
+    [permissionForm.userId, users]
+  );
 
   async function loadUsers() {
     try {
       const res = await authAPI.listUsers();
       setUsers(res.data || []);
+      setPermissionForm((current) => {
+        const nextUsers = res.data || [];
+        if (current.userId && nextUsers.some((user) => getUserId(user) === current.userId)) return current;
+        const firstUser = nextUsers.find((user) => user.role !== "superadmin") || nextUsers[0];
+        return firstUser
+          ? {
+              ...current,
+              userId: getUserId(firstUser),
+              permissions: normalizePermissions(firstUser.permissions),
+            }
+          : current;
+      });
     } catch (error) {
       setStatus(error.response?.data?.error || "Unable to load users.");
     }
@@ -77,6 +125,29 @@ function UserManagementPage() {
 
   function updateEditForm(field, value) {
     setEditForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function selectPermissionUser(userId) {
+    const user = users.find((item) => getUserId(item) === userId);
+    setPermissionForm({
+      userId,
+      permissions: normalizePermissions(user?.permissions),
+      superadminPassword: "",
+    });
+  }
+
+  function togglePermission(permission) {
+    setPermissionForm((current) => {
+      const permissions = normalizePermissions(current.permissions);
+      const nextPermissions = permissions.includes(permission)
+        ? permissions.filter((item) => item !== permission)
+        : [...permissions, permission];
+      return { ...current, permissions: nextPermissions };
+    });
+  }
+
+  function updatePermissionPassword(value) {
+    setPermissionForm((current) => ({ ...current, superadminPassword: value }));
   }
 
   async function createUser(event) {
@@ -138,6 +209,25 @@ function UserManagementPage() {
     }
   }
 
+  async function savePermissions(event) {
+    event.preventDefault();
+    if (!isSuperadmin || !permissionForm.userId) return;
+
+    try {
+      await authAPI.updateUser(permissionForm.userId, {
+        password: permissionForm.superadminPassword,
+        updates: {
+          permissions: normalizePermissions(permissionForm.permissions),
+        },
+      });
+      setPermissionForm((current) => ({ ...current, superadminPassword: "" }));
+      setStatus("User permissions saved.");
+      await loadUsers();
+    } catch (error) {
+      setStatus(error.response?.data?.error || "Unable to save permissions.");
+    }
+  }
+
   return (
     <div className="users-page">
       <section className="module-hero">
@@ -177,6 +267,69 @@ function UserManagementPage() {
           <button className="primary-button" type="submit"><UserPlus size={18} /> Create Account</button>
         </form>
 
+        {isSuperadmin && (
+          <form className="chart-card permission-panel" onSubmit={savePermissions}>
+            <div className="section-heading">
+              <div>
+                <span className="eyebrow">Superadmin</span>
+                <h3>Permission Panel</h3>
+              </div>
+              <ShieldCheck size={20} />
+            </div>
+
+            <label className="field">
+              <span>User</span>
+              <select value={permissionForm.userId} onChange={(event) => selectPermissionUser(event.target.value)}>
+                <option value="">Select user</option>
+                {users.map((user) => (
+                  <option key={getUserId(user)} value={getUserId(user)}>
+                    {user.name} ({user.role})
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {selectedPermissionUser && (
+              <div className="permission-user-card">
+                <strong>{selectedPermissionUser.name}</strong>
+                <span>{selectedPermissionUser.username || selectedPermissionUser.email}</span>
+              </div>
+            )}
+
+            <div className="permission-option-list">
+              {permissionOptions.map((permission) => (
+                <label className="permission-option" key={permission.value}>
+                  <input
+                    checked={permissionForm.permissions.includes(permission.value)}
+                    disabled={selectedPermissionUser?.role === "superadmin"}
+                    onChange={() => togglePermission(permission.value)}
+                    type="checkbox"
+                  />
+                  <span>
+                    <strong>{permission.label}</strong>
+                    <small>{permission.detail}</small>
+                  </span>
+                </label>
+              ))}
+            </div>
+
+            {selectedPermissionUser?.role === "superadmin" && (
+              <div className="inline-alert">Superadmin already has all permissions.</div>
+            )}
+
+            <Field
+              label="Superadmin password"
+              type="password"
+              value={permissionForm.superadminPassword}
+              onChange={updatePermissionPassword}
+              required
+            />
+            <button className="primary-button" type="submit" disabled={!permissionForm.userId}>
+              <Save size={18} /> Save Permissions
+            </button>
+          </form>
+        )}
+
         <article className="chart-card wide">
           <div className="section-heading">
             <div>
@@ -195,6 +348,9 @@ function UserManagementPage() {
                       <strong>{user.name}</strong>
                       <span>{user.username || user.email}</span>
                       {(user.studentAdmissionNo || user.linkedStudentAdmissionNo) && <span>Linked: {user.studentAdmissionNo || user.linkedStudentAdmissionNo}</span>}
+                      {normalizePermissions(user.permissions).length > 0 && (
+                        <span>Permissions: {formatPermissions(user.permissions)}</span>
+                      )}
                     </div>
                     <small>{user.status || "active"}</small>
                     {isSuperadmin && (
@@ -268,6 +424,17 @@ function Field({ label, value, onChange, type = "text", required }) {
       <input type={type} value={value} onChange={(event) => onChange(event.target.value)} required={required} />
     </label>
   );
+}
+
+function getUserId(user) {
+  return user?._id || user?.id || "";
+}
+
+function formatPermissions(permissions) {
+  const labels = new Map(permissionOptions.map((permission) => [permission.value, permission.label]));
+  return normalizePermissions(permissions)
+    .map((permission) => labels.get(permission) || permission)
+    .join(", ");
 }
 
 export default UserManagementPage;

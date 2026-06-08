@@ -30,6 +30,7 @@ import {
   X,
 } from "lucide-react";
 import { authAPI, erpAPI } from "../api";
+import { canUseRole } from "../permissions";
 import { getCurrentAcademicYear } from "../utils/academicYear";
 import { clearActiveSession, getSessionUser, updateActiveUser } from "../utils/session";
 
@@ -97,7 +98,6 @@ function AdminLayout() {
   const [notifications, setNotifications] = useState([]);
   const navigate = useNavigate();
   const location = useLocation();
-  const currentRole = String(currentUser.role || "").toLowerCase();
 
   useEffect(() => {
     authAPI
@@ -119,9 +119,9 @@ function AdminLayout() {
     () =>
       navGroups.map((group) => ({
         ...group,
-        items: group.items.filter((item) => item.roles.includes(currentRole)),
+        items: group.items.filter((item) => canUseRole(item.roles, currentUser)),
       })),
-    [currentRole]
+    [currentUser]
   );
 
   const pageTitle =

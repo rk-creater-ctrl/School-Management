@@ -7,7 +7,7 @@ const TeacherProfile = require('../models/TeacherProfile');
 const Fee = require('../models/Fee');
 const Attendance = require('../models/Attendance');
 const { writeActivity } = require('../utils/audit');
-const { filterStudentsForUser, getRole } = require('../utils/accessScope');
+const { filterStudentsForUser, getRole, hasAnyRole } = require('../utils/accessScope');
 
 const modulePermissions = {
   admissions: ['staff'],
@@ -31,7 +31,7 @@ const modulePermissions = {
 function canAccess(user, module) {
   if (!user) return false;
   if (user.role === 'superadmin') return true;
-  return (modulePermissions[module] || []).includes(user.role);
+  return hasAnyRole(user, modulePermissions[module] || []);
 }
 
 function canWrite(user, module) {
