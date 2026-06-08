@@ -85,6 +85,16 @@ function normalizeText(value, fallback = "") {
   return text || fallback;
 }
 
+function normalizeBoolean(value, fallback = true) {
+  if (value === undefined || value === null || value === "") return fallback;
+  if (typeof value === "boolean") return value;
+  return !["false", "0", "no", "off"].includes(String(value).trim().toLowerCase());
+}
+
+function shouldIncludeLateFees(entry) {
+  return entry?.includeLateFees !== false;
+}
+
 function normalizeKey(value) {
   return normalizeText(value).toLowerCase();
 }
@@ -234,6 +244,7 @@ function clearPayments(entry) {
   entry.receiptNo = "";
   entry.paymentNote = "";
   entry.collectedBy = "";
+  entry.includeLateFees = true;
 }
 
 function addPayment(entry, fee, period, body = {}) {
@@ -252,6 +263,7 @@ function addPayment(entry, fee, period, body = {}) {
     receiptNo: normalizeText(body.receiptNo, createReceiptNo(fee, period)),
     note: normalizeText(body.note),
     collectedBy: normalizeText(body.collectedBy),
+    includeLateFees: normalizeBoolean(body.includeLateFees, shouldIncludeLateFees(entry)),
   };
 
   entry.payments = [...(entry.payments || []), payment];
@@ -287,7 +299,9 @@ function recomputeTotals(fee, asOf = new Date()) {
         const dueNow = isMonthDueNow(m.name, fee.academicYear, asOf);
         const isFullyPaidLegacy = m.status === "Paid";
         const compareDate = isFullyPaidLegacy && m.paidDate ? m.paidDate : asOf;
-        const lateFee = dueNow || isFullyPaidLegacy ? getMonthLateFee(m, item, fee.academicYear, compareDate) : 0;
+        const lateFee = shouldIncludeLateFees(m) && (dueNow || isFullyPaidLegacy)
+          ? getMonthLateFee(m, item, fee.academicYear, compareDate)
+          : 0;
         const discountedAmount = getDiscountedAmount(baseAmount, m.concessionAmount);
         const payableAmount = discountedAmount + lateFee;
         const paidAmount = syncPaymentState(m, payableAmount);
@@ -306,7 +320,7 @@ function recomputeTotals(fee, asOf = new Date()) {
 
       const dueNow = isOneTimeItemDueNow(item, fee.academicYear, asOf);
       const compareDate = item.status === "Paid" && item.paidDate ? item.paidDate : asOf;
-      const lateFee = dueNow || item.status === "Paid"
+      const lateFee = shouldIncludeLateFees(item) && (dueNow || item.status === "Paid")
         ? getOneTimeLateFee(item, fee.academicYear, compareDate)
         : 0;
       const payableAmount = getDiscountedAmount(item.amount, item.concessionAmount) + lateFee;
@@ -411,6 +425,7 @@ router.post("/create-tuition", authorize(...FEE_MANAGE_ROLES), async (req, res) 
       receiptNo: "",
       paymentNote: "",
       payments: [],
+      includeLateFees: true,
       lateFeeAmount: lateFeeNum,
       lateFeeStartDay: LATE_FEE_START_DAY,
       lateFeeDueAmount: 0,
@@ -554,6 +569,7 @@ router.post("/add-item", authorize(...FEE_MANAGE_ROLES), async (req, res) => {
       receiptNo: "",
       paymentNote: "",
       payments: [],
+      includeLateFees: true,
       lateFeeAmount: DEFAULT_LATE_FEE_PER_DAY,
       lateFeeStartDay: LATE_FEE_START_DAY,
       lateFeeDueAmount: 0,
@@ -608,6 +624,7 @@ router.patch("/:feeId/toggle-month", authorize(...FEE_MANAGE_ROLES), async (req,
       const lateFee = getMonthLateFee(month, item, fee.academicYear, paidOn);
       const payableAmount = getDiscountedAmount(month.amount, month.concessionAmount) + lateFee;
       month.payments = [];
+      month.includeLateFees = true;
       month.lateFeePaidAmount = lateFee;
       addPayment(month, fee, month.name, {
         amount: payableAmount,
@@ -630,7 +647,7 @@ router.patch("/:feeId/toggle-month", authorize(...FEE_MANAGE_ROLES), async (req,
 router.patch("/:feeId/month-payment", authorize(...FEE_MANAGE_ROLES), async (req, res) => {
   try {
     const { feeId } = req.params;
-    const { itemId, monthName, concessionAmount } = req.body;
+    const { itemId, monthName, concessionAmount, includeLateFees } = req.body;
 
     const fee = await Fee.findById(feeId);
     if (!fee) return res.status(404).json({ error: "Fee plan not found" });
@@ -645,6 +662,9 @@ router.patch("/:feeId/month-payment", authorize(...FEE_MANAGE_ROLES), async (req
 
     if (concessionAmount !== undefined) {
       month.concessionAmount = normalizeMoney(concessionAmount);
+    }
+    if (includeLateFees !== undefined) {
+      month.includeLateFees = normalizeBoolean(includeLateFees, true);
     }
 
     addPayment(month, fee, month.name, req.body);
@@ -680,6 +700,7 @@ router.patch("/:feeId/toggle-item", authorize(...FEE_MANAGE_ROLES), async (req, 
       const lateFee = getOneTimeLateFee(item, fee.academicYear, paidOn);
       const payableAmount = getDiscountedAmount(item.amount, item.concessionAmount) + lateFee;
       item.payments = [];
+      item.includeLateFees = true;
       item.lateFeePaidAmount = lateFee;
       item.lateFeeDueAmount = lateFee;
       addPayment(item, fee, item.label, {
@@ -703,7 +724,7 @@ router.patch("/:feeId/toggle-item", authorize(...FEE_MANAGE_ROLES), async (req, 
 router.patch("/:feeId/item-payment", authorize(...FEE_MANAGE_ROLES), async (req, res) => {
   try {
     const { feeId } = req.params;
-    const { itemId, concessionAmount } = req.body;
+    const { itemId, concessionAmount, includeLateFees } = req.body;
 
     const fee = await Fee.findById(feeId);
     if (!fee) return res.status(404).json({ error: "Fee plan not found" });
@@ -715,6 +736,9 @@ router.patch("/:feeId/item-payment", authorize(...FEE_MANAGE_ROLES), async (req,
 
     if (concessionAmount !== undefined) {
       item.concessionAmount = normalizeMoney(concessionAmount);
+    }
+    if (includeLateFees !== undefined) {
+      item.includeLateFees = normalizeBoolean(includeLateFees, true);
     }
 
     addPayment(item, fee, item.label, req.body);

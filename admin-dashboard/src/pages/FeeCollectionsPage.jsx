@@ -4,10 +4,8 @@ import { Link } from "react-router-dom";
 import { feesAPI, transportAPI } from "../api";
 import {
   createCollectionSummary,
-  extractFeeLedgerRows,
-  extractTransportLedgerRows,
   formatCurrency,
-  getPaidFeeRows,
+  getPaidFeeCollectionRows,
   getPaidTransportRows,
 } from "../utils/feeReports";
 
@@ -40,27 +38,17 @@ function FeeCollectionsPage() {
       .catch(() => setStatus("Collection data unavailable."));
   }, []);
 
-  const ledgerRows = useMemo(() => extractFeeLedgerRows(fees), [fees]);
-  const transportLedgerRows = useMemo(() => extractTransportLedgerRows(transportFees), [transportFees]);
-  const paidRows = useMemo(() => getPaidFeeRows(fees), [fees]);
+  const paidRows = useMemo(() => getPaidFeeCollectionRows(fees), [fees]);
   const paidTransportRows = useMemo(() => getPaidTransportRows(transportFees), [transportFees]);
   const combinedPaidRows = useMemo(
     () => [...paidRows, ...paidTransportRows].sort((a, b) => new Date(b.paidDate) - new Date(a.paidDate)),
     [paidRows, paidTransportRows]
   );
-  const combinedLedgerRows = useMemo(
-    () => [...ledgerRows, ...transportLedgerRows],
-    [ledgerRows, transportLedgerRows]
-  );
-  const filteredLedgerRows = useMemo(
-    () => filterRowsByCollectionType(combinedLedgerRows, collectionType),
-    [combinedLedgerRows, collectionType]
-  );
   const filteredPaidRows = useMemo(
     () => filterRowsByCollectionType(combinedPaidRows, collectionType),
     [combinedPaidRows, collectionType]
   );
-  const summary = useMemo(() => createCollectionSummary(filteredLedgerRows), [filteredLedgerRows]);
+  const summary = useMemo(() => createCollectionSummary(filteredPaidRows), [filteredPaidRows]);
   const activeRows = summary[activeTab] || [];
   const totalCollection = combinedPaidRows.reduce((sum, row) => sum + row.amount, 0);
   const tuitionCollection = paidRows.filter((row) => row.source === "Tuition").reduce((sum, row) => sum + row.amount, 0);

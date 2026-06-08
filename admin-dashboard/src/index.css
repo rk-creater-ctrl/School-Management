@@ -870,6 +870,27 @@ option {
   background: #ffffff;
   padding: 0 10px;
 }
+.fee-date-popover .fee-check-row,
+.fee-payment-popover .fee-check-row {
+  display: flex;
+  grid-template-columns: none;
+  align-items: center;
+  gap: 8px;
+  color: #0f172a;
+  font-weight: 800;
+}
+.fee-date-popover .fee-check-row input,
+.fee-payment-popover .fee-check-row input {
+  width: 16px;
+  min-height: 16px;
+  height: 16px;
+  padding: 0;
+  accent-color: #0f172a;
+}
+.fee-payment-total {
+  color: #0f172a;
+  font-size: 13px;
+}
 .fee-date-popover div { display: flex; justify-content: flex-end; gap: 8px; }
 .fee-payment-popover {
   position: absolute;
@@ -1334,6 +1355,30 @@ option {
   color: var(--text);
   background: var(--panel);
   padding: 0 10px;
+}
+.receipt-orientation-toggle {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 800;
+}
+.receipt-orientation-toggle button {
+  min-height: 34px;
+  border: 1px solid #94a3b8;
+  border-radius: 8px;
+  color: #0f172a;
+  background: #ffffff;
+  padding: 0 11px;
+  cursor: pointer;
+  font-weight: 800;
+}
+.receipt-orientation-toggle button.active {
+  border-color: #0f172a;
+  color: #ffffff;
+  background: #0f172a;
 }
 .staff-payroll-page {
   display: grid;

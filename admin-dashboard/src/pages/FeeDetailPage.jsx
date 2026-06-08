@@ -283,6 +283,7 @@ function FeeDetailPage() {
       paidDate: paymentDraft.paidDate || null,
       paymentMode: paymentDraft.paymentMode,
       concessionAmount: Number(paymentDraft.concessionAmount || 0),
+      includeLateFees: Boolean(paymentDraft.includeLateFees),
       note: paymentDraft.note,
     });
     await loadData();
@@ -300,6 +301,7 @@ function FeeDetailPage() {
       paidDate: paymentDraft.paidDate || null,
       paymentMode: paymentDraft.paymentMode,
       concessionAmount: Number(paymentDraft.concessionAmount || 0),
+      includeLateFees: Boolean(paymentDraft.includeLateFees),
       note: paymentDraft.note,
     });
     await loadData();
@@ -316,12 +318,33 @@ function FeeDetailPage() {
     setPaymentDraft(createPaymentDraft());
   }
 
-  async function applyGroupPayment(group, paidDate, groupPaymentMode = "Cash") {
+  async function applyGroupPayment(group, paidDate, groupPaymentMode = "Cash", includeLateFees = false) {
     if (!tuitionItem || !plan) return;
     const shouldMarkPaid = group.status !== "Paid";
     const monthsToToggle = group.months.filter((month) =>
       shouldMarkPaid ? month.status !== "Paid" : month.status === "Paid"
     );
+
+    if (shouldMarkPaid) {
+      const receiptNo = createGroupedReceiptNo(plan, group);
+      const note = group.key === "yearly" ? "Yearly payment" : `${group.label} payment`;
+      for (const month of monthsToToggle) {
+        const amount = getEntryBalanceAmount(month, includeLateFees);
+        if (amount <= 0) continue;
+        await feesAPI.recordMonthPayment(plan._id, {
+          itemId: tuitionItem._id,
+          monthName: month.name,
+          amount,
+          paidDate: paidDate || null,
+          paymentMode: groupPaymentMode,
+          receiptNo,
+          includeLateFees,
+          note,
+        });
+      }
+      await loadData();
+      return;
+    }
 
     for (const month of monthsToToggle) {
       await feesAPI.toggleMonth(plan._id, tuitionItem._id, month.name, paidDate || null, groupPaymentMode);
@@ -350,7 +373,7 @@ function FeeDetailPage() {
     if (!activeGroupPick) return;
     const allowed = await requireRolePassword("record fee payment", ["superadmin", "accountant"]);
     if (!allowed) return;
-    await applyGroupPayment(activeGroupPick, selectedDate || null, paymentDraft.paymentMode);
+    await applyGroupPayment(activeGroupPick, selectedDate || null, paymentDraft.paymentMode, Boolean(paymentDraft.includeLateFees));
     setActiveGroupPick(null);
     setSelectedDate("");
     setPaymentDraft(createPaymentDraft());
@@ -536,7 +559,9 @@ function FeeDetailPage() {
                 onConfirm={confirmGroupDate}
                 onPay={handleGroupPayment}
                 canPay={canManageFees}
+                includeLateFees={paymentDraft.includeLateFees}
                 paymentMedium={paymentDraft.paymentMode}
+                setIncludeLateFees={(value) => setPaymentDraft((current) => ({ ...current, includeLateFees: value }))}
                 setPaymentMedium={(value) => setPaymentDraft((current) => ({ ...current, paymentMode: value }))}
                 selectedDate={selectedDate}
                 setSelectedDate={setSelectedDate}
@@ -626,7 +651,8 @@ function FeeDetailPage() {
                           {isActive && (
                             <PaymentPopover
                               draft={paymentDraft}
-                              maxAmount={getEntryBalanceAmount(m)}
+                              lateFeeAmount={getMonthLateFeeAmount(m)}
+                              maxAmount={getEntryBalanceAmount(m, paymentDraft.includeLateFees)}
                               onCancel={() => {
                                 setActiveMonthPick(null);
                                 setPaymentDraft(createPaymentDraft());
@@ -822,7 +848,8 @@ function FeeDetailPage() {
                           {isActive && (
                             <PaymentPopover
                               draft={paymentDraft}
-                              maxAmount={getEntryBalanceAmount(i)}
+                              lateFeeAmount={getOneTimeLateFeeAmount(i)}
+                              maxAmount={getEntryBalanceAmount(i, paymentDraft.includeLateFees)}
                               onCancel={() => {
                                 setActiveItemPick(null);
                                 setPaymentDraft(createPaymentDraft());
@@ -860,7 +887,7 @@ function FeeDetailPage() {
   );
 }
 
-function PaymentPopover({ draft, maxAmount, onCancel, onChange, onConfirm }) {
+function PaymentPopover({ draft, lateFeeAmount = 0, maxAmount, onCancel, onChange, onConfirm }) {
   function update(field, value) {
     onChange((current) => ({ ...current, [field]: value }));
   }
@@ -871,6 +898,16 @@ function PaymentPopover({ draft, maxAmount, onCancel, onChange, onConfirm }) {
         <strong>Record Payment</strong>
         <span>Balance: {formatCurrency(maxAmount)}</span>
       </div>
+      {lateFeeAmount > 0 && (
+        <label className="fee-check-row">
+          <input
+            type="checkbox"
+            checked={Boolean(draft.includeLateFees)}
+            onChange={(event) => update("includeLateFees", event.target.checked)}
+          />
+          <span>Include late fees ({formatCurrency(lateFeeAmount)})</span>
+        </label>
+      )}
       <label>
         <span>Paid amount</span>
         <input type="number" min="1" value={draft.amount} onChange={(event) => update("amount", event.target.value)} placeholder="Enter amount" />
@@ -1192,13 +1229,23 @@ function ReceiptModal({ onClose, receipt, student }) {
           <button className="secondary-button" type="button" onClick={() => setIsEditing((current) => !current)}>
             {isEditing ? "Preview Receipt" : "Edit Receipt"}
           </button>
-          <label className="receipt-print-layout">
+          <div className="receipt-orientation-toggle" role="group" aria-label="Print layout">
             <span>Print layout</span>
-            <select value={printOrientation} onChange={(event) => setPrintOrientation(event.target.value)}>
-              <option value="portrait">Portrait</option>
-              <option value="landscape">Landscape</option>
-            </select>
-          </label>
+            <button
+              className={printOrientation === "portrait" ? "active" : ""}
+              type="button"
+              onClick={() => setPrintOrientation("portrait")}
+            >
+              Portrait
+            </button>
+            <button
+              className={printOrientation === "landscape" ? "active" : ""}
+              type="button"
+              onClick={() => setPrintOrientation("landscape")}
+            >
+              Landscape
+            </button>
+          </div>
           <button className="secondary-button" type="button" onClick={handleDownloadReceipt}>Download Receipt</button>
           <button className="secondary-button" type="button" onClick={onClose}>Close</button>
           <button className="primary-button" type="button" onClick={() => printReceiptOnly(printOrientation)}>Print Receipt</button>
@@ -1303,6 +1350,7 @@ function buildReceiptFromLedger(row, ledgerRows) {
     item.status === "Paid" &&
     item.feeId === row.feeId &&
     item.label === row.label &&
+    (!row.receiptNo || item.receiptNo === row.receiptNo) &&
     toDateKey(item.paidDate) === receiptDate
   );
   const lines = sortReceiptLines(matchingRows.length ? matchingRows : [row]);
@@ -1417,12 +1465,14 @@ function PaymentSchedule({
   academicYear,
   activeGroupPick,
   canPay,
+  includeLateFees,
   mode,
   onCancel,
   onConfirm,
   onPay,
   paymentMedium,
   selectedDate,
+  setIncludeLateFees,
   setPaymentMedium,
   setSelectedDate,
   tuitionItem,
@@ -1470,6 +1520,19 @@ function PaymentSchedule({
                     ))}
                   </select>
                 </label>
+                {group.lateFeeAmount > 0 && (
+                  <label className="fee-check-row">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(includeLateFees)}
+                      onChange={(event) => setIncludeLateFees(event.target.checked)}
+                    />
+                    <span>Include late fees ({formatCurrency(group.lateFeeAmount)})</span>
+                  </label>
+                )}
+                <strong className="fee-payment-total">
+                  Receiving: {formatCurrency(getGroupBalanceAmount(group, includeLateFees))}
+                </strong>
                 <div>
                   <button className="secondary-button" type="button" onClick={onCancel}>Cancel</button>
                   <button className="primary-button" type="button" onClick={onConfirm}>Save</button>
@@ -1502,6 +1565,14 @@ function getPaymentModeLabel(mode) {
   return "Monthly";
 }
 
+function createGroupedReceiptNo(plan, group) {
+  const year = String(plan?.academicYear || "YEAR").replace(/\D/g, "").slice(0, 8);
+  const admission = String(plan?.admissionNo || plan?.student || "STD").replace(/\W/g, "").slice(-6).toUpperCase();
+  const code = String(group?.key || group?.label || "FEE").replace(/\W/g, "").slice(0, 8).toUpperCase();
+  const stamp = Date.now().toString(36).toUpperCase().slice(-5);
+  return `R-${year}-${admission}-${code}-${stamp}`;
+}
+
 function getPaymentModeDueDetail(mode) {
   if (mode === "quarterly") return "Current and past quarters";
   if (mode === "yearly") return "Full active year balance";
@@ -1532,11 +1603,13 @@ function getPaymentGroups(tuitionItem, mode, academicYear) {
 function toPaymentGroup(key, label, months, academicYear, mode) {
   const lateFeeAmount = months.reduce((sum, month) => sum + getMonthLateFeeAmount(month), 0);
   const payableAmount = months.reduce((sum, month) => sum + getMonthPayableAmount(month), 0);
+  const basePayableAmount = months.reduce((sum, month) => sum + getMonthPayableAmount(month, false), 0);
   const paidAmount = months.reduce(
     (sum, month) => sum + getEntryPaidAmount(month, getMonthPayableAmount(month)),
     0
   );
   const balanceAmount = Math.max(0, payableAmount - paidAmount);
+  const baseBalanceAmount = Math.max(0, basePayableAmount - paidAmount);
   const dueAmount = isPaymentGroupDueNow(months, academicYear, mode) ? balanceAmount : 0;
   const status = months.length && balanceAmount <= 0 ? "Paid" : paidAmount > 0 ? "Partial" : "Pending";
 
@@ -1546,11 +1619,16 @@ function toPaymentGroup(key, label, months, academicYear, mode) {
     months,
     amount: payableAmount,
     balanceAmount,
+    baseBalanceAmount,
     dueAmount,
     lateFeeAmount,
     paidAmount,
     status,
   };
+}
+
+function getGroupBalanceAmount(group, includeLateFees) {
+  return includeLateFees ? group.balanceAmount : group.baseBalanceAmount;
 }
 
 function isPaymentGroupDueNow(months, academicYear, mode) {
@@ -1569,12 +1647,14 @@ function getMonthLateFeeAmount(month) {
     : Number(month.lateFeeDueAmount || 0);
 }
 
-function getMonthPayableAmount(month) {
-  return Math.max(0, Number(month.amount || 0) - Number(month.concessionAmount || 0)) + getMonthLateFeeAmount(month);
+function getMonthPayableAmount(month, includeLateFees = true) {
+  return Math.max(0, Number(month.amount || 0) - Number(month.concessionAmount || 0)) +
+    (includeLateFees ? getMonthLateFeeAmount(month) : 0);
 }
 
-function getOneTimePayableAmount(item) {
-  return Math.max(0, Number(item?.amount || 0) - Number(item?.concessionAmount || 0)) + getOneTimeLateFeeAmount(item);
+function getOneTimePayableAmount(item, includeLateFees = true) {
+  return Math.max(0, Number(item?.amount || 0) - Number(item?.concessionAmount || 0)) +
+    (includeLateFees ? getOneTimeLateFeeAmount(item) : 0);
 }
 
 function getEntryPaidAmount(entry, payableAmount) {
@@ -1585,9 +1665,11 @@ function getEntryPaidAmount(entry, payableAmount) {
   return entry?.status === "Paid" ? payableAmount : 0;
 }
 
-function getEntryBalanceAmount(entry) {
+function getEntryBalanceAmount(entry, includeLateFees = true) {
   if (!entry) return 0;
-  const payableAmount = entry.name ? getMonthPayableAmount(entry) : getOneTimePayableAmount(entry);
+  const payableAmount = entry.name
+    ? getMonthPayableAmount(entry, includeLateFees)
+    : getOneTimePayableAmount(entry, includeLateFees);
   return Math.max(0, payableAmount - getEntryPaidAmount(entry, payableAmount));
 }
 
@@ -1624,6 +1706,7 @@ function createPaymentDraft(amount = "") {
   return {
     amount: amount ? String(amount) : "",
     concessionAmount: "0",
+    includeLateFees: false,
     paidDate: todayInputDate(),
     paymentMode: "Cash",
     note: "",

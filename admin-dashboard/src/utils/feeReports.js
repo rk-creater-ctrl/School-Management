@@ -144,6 +144,11 @@ export function getPaidFeeRows(feesOrPlan) {
     .sort((a, b) => new Date(b.paidDate) - new Date(a.paidDate));
 }
 
+export function getPaidFeeCollectionRows(feesOrPlan) {
+  return collapseGroupedTuitionReceipts(getPaidFeeRows(feesOrPlan))
+    .sort((a, b) => new Date(b.paidDate) - new Date(a.paidDate));
+}
+
 export function extractTransportLedgerRows(feesOrPlan) {
   const fees = Array.isArray(feesOrPlan) ? feesOrPlan : feesOrPlan ? [feesOrPlan] : [];
 
@@ -219,6 +224,83 @@ function isOneTimeItemDueNow(item, academicYear) {
 function isFeeMonthDueNow(monthName, academicYear, asOf = new Date()) {
   if (!feeMonths.includes(monthName)) return true;
   return getAcademicMonthDateRange(monthName, academicYear).from <= normalizeDate(asOf);
+}
+
+function collapseGroupedTuitionReceipts(rows) {
+  const groupedRows = new Map();
+  const collectionRows = [];
+
+  rows.forEach((row) => {
+    if (row.source !== "Tuition" || !row.receiptNo) {
+      collectionRows.push(row);
+      return;
+    }
+
+    const key = [
+      row.receiptNo,
+      row.feeId,
+      row.studentId,
+      toDateKey(row.paidDate),
+      row.paymentMode || "",
+      row.label || "",
+    ].join("|");
+    const current = groupedRows.get(key) || [];
+    current.push(row);
+    groupedRows.set(key, current);
+  });
+
+  groupedRows.forEach((receiptRows) => {
+    if (receiptRows.length <= 1) {
+      collectionRows.push(receiptRows[0]);
+      return;
+    }
+
+    collectionRows.push(createGroupedCollectionRow(receiptRows));
+  });
+
+  return collectionRows;
+}
+
+function createGroupedCollectionRow(rows) {
+  const sortedRows = [...rows].sort((a, b) => feeMonths.indexOf(a.period) - feeMonths.indexOf(b.period));
+  const first = sortedRows[0];
+  const periodCount = new Set(sortedRows.map((row) => row.period)).size;
+  const noteText = sortedRows.map((row) => row.note || "").join(" ").toLowerCase();
+  const isYearly = noteText.includes("yearly") || periodCount >= feeMonths.length;
+  const isQuarterly = !isYearly && (noteText.includes("quarter") || periodCount >= 3);
+
+  return {
+    ...first,
+    id: `collection-${first.receiptNo}-${first.feeId}-${toDateKey(first.paidDate)}`,
+    label: isYearly ? "Yearly Payment" : isQuarterly ? "Quarterly Payment" : first.label,
+    period: isYearly ? "Yearly" : formatPeriodRange(sortedRows.map((row) => row.period)),
+    baseAmount: sumRows(sortedRows, "baseAmount"),
+    concessionAmount: sumRows(sortedRows, "concessionAmount"),
+    lateFeeAmount: sumRows(sortedRows, "lateFeeAmount"),
+    payableAmount: sumRows(sortedRows, "payableAmount"),
+    amount: sumRows(sortedRows, "amount"),
+    paidAmount: sumRows(sortedRows, "paidAmount"),
+    dueAmount: 0,
+    status: "Paid",
+  };
+}
+
+function formatPeriodRange(periods) {
+  const uniquePeriods = [...new Set(periods.filter(Boolean))];
+  if (uniquePeriods.length <= 1) return uniquePeriods[0] || "-";
+
+  const sortedPeriods = uniquePeriods.sort((a, b) => feeMonths.indexOf(a) - feeMonths.indexOf(b));
+  const first = sortedPeriods[0];
+  const last = sortedPeriods[sortedPeriods.length - 1];
+  return `${first} - ${last}`;
+}
+
+function sumRows(rows, field) {
+  return rows.reduce((sum, row) => sum + Number(row[field] || 0), 0);
+}
+
+function toDateKey(value) {
+  return value ? new Date(value).toISOString().slice(0, 10) : "";
 }
 
 function getAcademicMonthDateRange(monthName, academicYear) {
