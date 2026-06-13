@@ -5,7 +5,7 @@ export function printReceiptOnly(orientation = "portrait") {
   document.body.classList.add(`receipt-print-${printOrientation}`);
   const pageStyle = document.createElement("style");
   pageStyle.id = "receipt-print-page-style";
-  pageStyle.textContent = `@page { size: A4 ${printOrientation}; margin: 10mm; }`;
+  pageStyle.textContent = `@page { size: A4 ${printOrientation}; margin: 0; }`;
   document.head.appendChild(pageStyle);
 
   const cleanup = () => {
@@ -36,7 +36,7 @@ export function downloadReceiptHtml(receiptElement, { filename = "receipt", orie
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${escapeHtml(title)}</title>
   <style>
-    @page { size: A4 ${printOrientation}; margin: 10mm; }
+    @page { size: A4 ${printOrientation}; margin: 0; }
     * { box-sizing: border-box; }
     body {
       margin: 0;
@@ -46,13 +46,23 @@ export function downloadReceiptHtml(receiptElement, { filename = "receipt", orie
       font-family: Inter, Arial, sans-serif;
       direction: ltr;
     }
+    .receipt-a4-page {
+      width: ${printOrientation === "landscape" ? "297mm" : "210mm"};
+      min-height: ${printOrientation === "landscape" ? "210mm" : "297mm"};
+      margin: 0 auto;
+      padding: 0;
+      color: #0f172a;
+      background: #ffffff;
+      direction: ltr;
+    }
     .receipt-print-area {
-      width: ${printOrientation === "landscape" ? "277mm" : "190mm"};
-      max-width: 100%;
-      margin: 0 0 0 auto;
+      width: 100%;
+      min-height: ${printOrientation === "landscape" ? "84mm" : "98mm"};
+      margin: 0;
       padding: 4.5mm;
       color: #0f172a;
       background: #ffffff;
+      border-bottom: 1px solid #cbd5e1;
       direction: ltr;
     }
     .receipt-header,

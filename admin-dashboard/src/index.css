@@ -1226,19 +1226,32 @@ option {
   margin: 0;
   min-height: 46px;
 }
+.receipt-a4-page {
+  width: min(210mm, 100%);
+  min-height: min(297mm, 78vh);
+  padding: 0;
+  color: #0f172a;
+  background: #ffffff;
+  border: 3px solid #111827;
+  margin: 0 auto;
+  overflow: auto;
+}
+.receipt-a4-page.landscape {
+  width: min(277mm, 100%);
+  min-height: min(190mm, 78vh);
+}
 .receipt-print-area {
-  width: min(190mm, 100%);
-  min-height: 132mm;
+  width: 100%;
+  min-height: 104mm;
   padding: 7mm;
   color: #0f172a;
   background: #ffffff;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  margin: 0 0 0 auto;
+  border: 2px solid #d1d5db;
+  border-radius: 0;
+  margin: 0;
 }
 .receipt-print-area.landscape {
-  width: min(277mm, 100%);
-  min-height: 96mm;
+  min-height: 86mm;
 }
 .receipt-header {
   display: flex;
@@ -3794,7 +3807,7 @@ td { color: var(--text); }
   body { background: white; }
   .sidebar, .topbar, .no-print { display: none !important; }
   .main-frame, .content-panel, .document-preview { display: block; padding: 0; margin: 0; width: 100%; border: 0; background: white; }
-  .print-area, .receipt-print-area { box-shadow: none; margin: 0 auto; }
+  .print-area, .receipt-a4-page, .receipt-print-area { box-shadow: none; margin: 0 auto; }
   .modal-backdrop { position: static; display: block; padding: 0; background: white; }
   .receipt-modal { width: 100%; max-height: none; overflow: visible; padding: 0; border: 0; background: white; }
   body.receipt-printing .app-shell {
@@ -3815,20 +3828,40 @@ td { color: var(--text); }
     display: none !important;
   }
   body.receipt-printing * { visibility: hidden !important; }
+  body.receipt-printing .receipt-a4-page,
+  body.receipt-printing .receipt-a4-page *,
   body.receipt-printing .receipt-print-area,
   body.receipt-printing .receipt-print-area * { visibility: visible !important; }
-  body.receipt-printing .receipt-print-area {
+  body.receipt-printing .receipt-a4-page {
     position: static;
     inset: 0 auto auto 0;
-    width: 190mm;
+    width: 210mm;
+    height: 297mm;
+    min-height: 297mm;
+    max-width: 210mm;
+    overflow: visible;
+    margin: 0 auto;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: white;
+  }
+  body.receipt-printing.receipt-print-landscape .receipt-a4-page {
+    width: 297mm;
+    height: 210mm;
+    min-height: 210mm;
+    max-width: 297mm;
+  }
+  body.receipt-printing .receipt-print-area {
+    width: 100%;
     height: auto;
-    min-height: 0;
-    max-width: 190mm;
+    min-height: 98mm;
     max-height: none;
     overflow: visible;
-    margin: 0 0 0 auto;
+    margin: 0;
     padding: 4.5mm;
     border: 0;
+    border-bottom: 1px solid #cbd5e1;
     border-radius: 0;
     direction: ltr;
     break-inside: auto;
@@ -3836,8 +3869,7 @@ td { color: var(--text); }
     page-break-after: auto;
   }
   body.receipt-printing.receipt-print-landscape .receipt-print-area {
-    width: 277mm;
-    max-width: 277mm;
+    min-height: 84mm;
   }
   body.receipt-printing .receipt-header {
     gap: 8px;

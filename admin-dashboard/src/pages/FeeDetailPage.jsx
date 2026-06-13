@@ -1156,127 +1156,129 @@ function ReceiptModal({ onClose, receipt, student }) {
           </div>
         )}
 
-        <article className={`receipt-print-area ${printOrientation}`} ref={receiptRef}>
-          <header className="receipt-header">
-            <div className="receipt-school-brand">
-              {logoUrl ? (
-                <img src={logoUrl} alt={`${schoolName} logo`} />
-              ) : (
-                <div className="receipt-logo-fallback">{getSchoolInitials(schoolName)}</div>
-              )}
-              <div>
-                <h2>{schoolName}</h2>
-                <p className="receipt-school-description">{receiptSchoolDescription}</p>
-                <span>Fee Receipt</span>
+        <div className={`receipt-a4-page ${printOrientation}`} ref={receiptRef}>
+          <article className={`receipt-print-area ${printOrientation}`}>
+            <header className="receipt-header">
+              <div className="receipt-school-brand">
+                {logoUrl ? (
+                  <img src={logoUrl} alt={`${schoolName} logo`} />
+                ) : (
+                  <div className="receipt-logo-fallback">{getSchoolInitials(schoolName)}</div>
+                )}
+                <div>
+                  <h2>{schoolName}</h2>
+                  <p className="receipt-school-description">{receiptSchoolDescription}</p>
+                  <span>Fee Receipt</span>
+                </div>
               </div>
-            </div>
-            <div className="receipt-number">
-              <span>Receipt No</span>
-              <strong>{draft.receiptNo || "-"}</strong>
-            </div>
-          </header>
+              <div className="receipt-number">
+                <span>Receipt No</span>
+                <strong>{draft.receiptNo || "-"}</strong>
+              </div>
+            </header>
 
-          <section className="receipt-info-grid">
-            <div>
-              <span>Student</span>
-              <strong>{student?.name || receipt.studentName || "-"}</strong>
-            </div>
-            <div>
-              <span>Father Name</span>
-              <strong>{student?.fatherName || receipt.fatherName || "-"}</strong>
-            </div>
-            <div>
-              <span>Admission No</span>
-              <strong>{student?.admissionNo || receipt.admissionNo || "-"}</strong>
-            </div>
-            <div>
-              <span>Class</span>
-              <strong>{student?.className || receipt.className || "-"}</strong>
-            </div>
-            <div>
-              <span>Section</span>
-              <strong>{student?.section || receipt.section || "-"}</strong>
-            </div>
-            <div>
-              <span>Academic Year</span>
-              <strong>{receipt.academicYear || "-"}</strong>
-            </div>
-            <div>
-              <span>Paid For</span>
-              <strong>{receipt.periodRange || receipt.period || "-"}</strong>
-            </div>
-            <div>
-              <span>Paid Date</span>
-              <strong>{paidDate.toLocaleDateString("en-IN")}</strong>
-            </div>
-            <div>
-              <span>Payment Medium</span>
-              <strong>{draft.paymentMode || "Cash"}</strong>
-            </div>
-            <div>
-              <span>Cheque No.</span>
-              <strong>{draft.chequeNo || "-"}</strong>
-            </div>
-            <div>
-              <span>Account No.</span>
-              <strong>{draft.accountNo || "-"}</strong>
-            </div>
-          </section>
+            <section className="receipt-info-grid">
+              <div>
+                <span>Student</span>
+                <strong>{student?.name || receipt.studentName || "-"}</strong>
+              </div>
+              <div>
+                <span>Father Name</span>
+                <strong>{student?.fatherName || receipt.fatherName || "-"}</strong>
+              </div>
+              <div>
+                <span>Admission No</span>
+                <strong>{student?.admissionNo || receipt.admissionNo || "-"}</strong>
+              </div>
+              <div>
+                <span>Class</span>
+                <strong>{student?.className || receipt.className || "-"}</strong>
+              </div>
+              <div>
+                <span>Section</span>
+                <strong>{student?.section || receipt.section || "-"}</strong>
+              </div>
+              <div>
+                <span>Academic Year</span>
+                <strong>{receipt.academicYear || "-"}</strong>
+              </div>
+              <div>
+                <span>Paid For</span>
+                <strong>{receipt.periodRange || receipt.period || "-"}</strong>
+              </div>
+              <div>
+                <span>Paid Date</span>
+                <strong>{paidDate.toLocaleDateString("en-IN")}</strong>
+              </div>
+              <div>
+                <span>Payment Medium</span>
+                <strong>{draft.paymentMode || "Cash"}</strong>
+              </div>
+              <div>
+                <span>Cheque No.</span>
+                <strong>{draft.chequeNo || "-"}</strong>
+              </div>
+              <div>
+                <span>Account No.</span>
+                <strong>{draft.accountNo || "-"}</strong>
+              </div>
+            </section>
 
-          <table className="receipt-lines">
-            <thead>
-              <tr>
-                <th>Particulars</th>
-                <th>Period</th>
-                <th>Fee</th>
-                <th>Paid Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {draft.lines.map((line, index) => (
-                <tr key={line.id || index}>
-                  <td>{line.label}</td>
-                  <td>{line.period}</td>
-                  <td>{formatCurrency(getReceiptLineFeeAmount(line, draft.includeLateFees))}</td>
-                  <td>{formatCurrency(getReceiptLinePaidAmount(line, draft.includeLateFees))}</td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td colSpan="3">Total Fee</td>
-                <td>{formatCurrency(feeAmount)}</td>
-              </tr>
-              {draft.includeLateFees && lateFeeAmount > 0 && (
+            <table className="receipt-lines">
+              <thead>
                 <tr>
-                  <td colSpan="3">Late Fees</td>
-                  <td>{formatCurrency(lateFeeAmount)}</td>
+                  <th>Particulars</th>
+                  <th>Period</th>
+                  <th>Fee</th>
+                  <th>Paid Amount</th>
                 </tr>
-              )}
-              <tr>
-                <td colSpan="3">Discount</td>
-                <td>{discountAmount ? formatCurrency(discountAmount) : "-"}</td>
-              </tr>
-              <tr>
-                <td colSpan="3">Total Amount</td>
-                <td>{formatCurrency(paidAmount)}</td>
-              </tr>
-            </tfoot>
-          </table>
+              </thead>
+              <tbody>
+                {draft.lines.map((line, index) => (
+                  <tr key={line.id || index}>
+                    <td>{line.label}</td>
+                    <td>{line.period}</td>
+                    <td>{formatCurrency(getReceiptLineFeeAmount(line, draft.includeLateFees))}</td>
+                    <td>{formatCurrency(getReceiptLinePaidAmount(line, draft.includeLateFees))}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan="3">Total Fee</td>
+                  <td>{formatCurrency(feeAmount)}</td>
+                </tr>
+                {draft.includeLateFees && lateFeeAmount > 0 && (
+                  <tr>
+                    <td colSpan="3">Late Fees</td>
+                    <td>{formatCurrency(lateFeeAmount)}</td>
+                  </tr>
+                )}
+                <tr>
+                  <td colSpan="3">Discount</td>
+                  <td>{discountAmount ? formatCurrency(discountAmount) : "-"}</td>
+                </tr>
+                <tr>
+                  <td colSpan="3">Total Amount</td>
+                  <td>{formatCurrency(paidAmount)}</td>
+                </tr>
+              </tfoot>
+            </table>
 
-          <section className="receipt-note-box">
-            <span>Note</span>
-            <p>{draft.note || " "}</p>
-          </section>
+            <section className="receipt-note-box">
+              <span>Note</span>
+              <p>{draft.note || " "}</p>
+            </section>
 
-          <footer className="receipt-footer">
-            <span>Amount received for the period shown above.</span>
-            <div className="receipt-signature">
-              <span>For {schoolName}</span>
-              <strong>Authorized Signatory</strong>
-            </div>
-          </footer>
-        </article>
+            <footer className="receipt-footer">
+              <span>Amount received for the period shown above.</span>
+              <div className="receipt-signature">
+                <span>For {schoolName}</span>
+                <strong>Authorized Signatory</strong>
+              </div>
+            </footer>
+          </article>
+        </div>
 
         <div className="receipt-actions no-print">
           <button className="secondary-button" type="button" onClick={() => setIsEditing((current) => !current)}>
