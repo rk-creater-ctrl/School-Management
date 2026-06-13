@@ -5,7 +5,7 @@ export function printReceiptOnly(orientation = "portrait") {
   document.body.classList.add(`receipt-print-${printOrientation}`);
   const pageStyle = document.createElement("style");
   pageStyle.id = "receipt-print-page-style";
-  pageStyle.textContent = `@page { size: A5 ${printOrientation}; margin: 5mm; }`;
+  pageStyle.textContent = `@page { size: A4 ${printOrientation}; margin: 10mm; }`;
   document.head.appendChild(pageStyle);
 
   const cleanup = () => {
@@ -36,7 +36,7 @@ export function downloadReceiptHtml(receiptElement, { filename = "receipt", orie
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${escapeHtml(title)}</title>
   <style>
-    @page { size: A5 ${printOrientation}; margin: 5mm; }
+    @page { size: A4 ${printOrientation}; margin: 10mm; }
     * { box-sizing: border-box; }
     body {
       margin: 0;
@@ -44,13 +44,16 @@ export function downloadReceiptHtml(receiptElement, { filename = "receipt", orie
       color: #0f172a;
       background: #ffffff;
       font-family: Inter, Arial, sans-serif;
+      direction: ltr;
     }
     .receipt-print-area {
-      width: ${printOrientation === "landscape" ? "200mm" : "138mm"};
-      margin: 0 auto;
-      padding: 5mm;
+      width: ${printOrientation === "landscape" ? "277mm" : "190mm"};
+      max-width: 100%;
+      margin: 0 0 0 auto;
+      padding: 4.5mm;
       color: #0f172a;
       background: #ffffff;
+      direction: ltr;
     }
     .receipt-header,
     .receipt-footer {
@@ -63,12 +66,12 @@ export function downloadReceiptHtml(receiptElement, { filename = "receipt", orie
       padding-bottom: 3mm;
       border-bottom: 2px solid #0f766e;
     }
-    .receipt-school-brand { display: flex; align-items: center; gap: 8px; }
+    .receipt-school-brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
     .receipt-school-brand img,
     .receipt-logo-fallback {
-      width: 36px;
-      height: 36px;
-      flex: 0 0 36px;
+      width: 38px;
+      height: 38px;
+      flex: 0 0 38px;
       object-fit: contain;
       border: 1px solid #cbd5e1;
       border-radius: 8px;
@@ -78,7 +81,15 @@ export function downloadReceiptHtml(receiptElement, { filename = "receipt", orie
       font-weight: 900;
       background: #f8fafc;
     }
-    .receipt-header h2 { margin: 2px 0 0; font-size: 18px; line-height: 1.1; }
+    .receipt-header h2 { margin: 0; font-size: 16px; line-height: 1.1; }
+    .receipt-school-description {
+      max-width: 122mm;
+      margin: 1mm 0;
+      color: #475569;
+      font-size: 7.5px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
     .receipt-header span,
     .receipt-number span,
     .receipt-note-box span,
@@ -94,13 +105,13 @@ export function downloadReceiptHtml(receiptElement, { filename = "receipt", orie
     .receipt-number strong { display: block; margin-top: 2px; font-size: 10px; word-break: break-word; }
     .receipt-info-grid {
       display: grid;
-      grid-template-columns: repeat(${printOrientation === "landscape" ? "4" : "3"}, minmax(0, 1fr));
-      gap: 2mm 4mm;
-      margin: 4mm 0 3mm;
+      grid-template-columns: repeat(${printOrientation === "landscape" ? "5" : "4"}, minmax(0, 1fr));
+      gap: 1.7mm 3mm;
+      margin: 2.5mm 0 2mm;
     }
-    .receipt-info-grid div { display: grid; gap: 1px; padding-bottom: 1.5mm; border-bottom: 1px solid #e2e8f0; }
-    .receipt-info-grid span { color: #64748b; font-size: 8px; }
-    .receipt-info-grid strong { color: #0f172a; font-size: 9.5px; line-height: 1.2; }
+    .receipt-info-grid div { display: grid; gap: 1px; padding-bottom: 1.2mm; border-bottom: 1px solid #e2e8f0; }
+    .receipt-info-grid span { color: #64748b; font-size: 7.5px; }
+    .receipt-info-grid strong { color: #0f172a; font-size: 8.8px; line-height: 1.2; }
     .receipt-lines {
       width: 100%;
       min-width: 0;

@@ -207,6 +207,8 @@ function syncPaymentState(entry, payableAmount) {
     entry.paidDate = latestPayment.paidDate;
     entry.paymentMode = latestPayment.paymentMode || entry.paymentMode || "Cash";
     entry.receiptNo = latestPayment.receiptNo || entry.receiptNo;
+    entry.chequeNo = latestPayment.chequeNo || entry.chequeNo || "";
+    entry.accountNo = latestPayment.accountNo || entry.accountNo || "";
     entry.paymentNote = latestPayment.note || entry.paymentNote;
     entry.collectedBy = latestPayment.collectedBy || entry.collectedBy;
   }
@@ -242,6 +244,8 @@ function clearPayments(entry) {
   entry.paidDate = null;
   entry.paymentMode = "Cash";
   entry.receiptNo = "";
+  entry.chequeNo = "";
+  entry.accountNo = "";
   entry.paymentNote = "";
   entry.collectedBy = "";
   entry.includeLateFees = true;
@@ -261,6 +265,8 @@ function addPayment(entry, fee, period, body = {}) {
     paidDate,
     paymentMode: normalizeText(body.paymentMode, "Cash"),
     receiptNo: normalizeText(body.receiptNo, createReceiptNo(fee, period)),
+    chequeNo: normalizeText(body.chequeNo || body.checkNo),
+    accountNo: normalizeText(body.accountNo || body.accountNumber),
     note: normalizeText(body.note),
     collectedBy: normalizeText(body.collectedBy),
     includeLateFees: normalizeBoolean(body.includeLateFees, shouldIncludeLateFees(entry)),
@@ -270,6 +276,8 @@ function addPayment(entry, fee, period, body = {}) {
   entry.paymentMode = payment.paymentMode;
   entry.paidDate = payment.paidDate;
   entry.receiptNo = payment.receiptNo;
+  entry.chequeNo = payment.chequeNo;
+  entry.accountNo = payment.accountNo;
   entry.paymentNote = payment.note;
   entry.collectedBy = payment.collectedBy;
 }
@@ -423,6 +431,8 @@ router.post("/create-tuition", authorize(...FEE_MANAGE_ROLES), async (req, res) 
       concessionAmount: 0,
       paymentMode: "Cash",
       receiptNo: "",
+      chequeNo: "",
+      accountNo: "",
       paymentNote: "",
       payments: [],
       includeLateFees: true,
@@ -567,6 +577,8 @@ router.post("/add-item", authorize(...FEE_MANAGE_ROLES), async (req, res) => {
       concessionAmount: 0,
       paymentMode: "Cash",
       receiptNo: "",
+      chequeNo: "",
+      accountNo: "",
       paymentNote: "",
       payments: [],
       includeLateFees: true,

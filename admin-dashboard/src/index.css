@@ -968,6 +968,15 @@ option {
   background: #ffffff;
   padding: 8px 10px;
 }
+.fee-payment-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.fee-date-popover .fee-payment-meta-grid {
+  display: grid;
+  justify-content: stretch;
+}
 .fee-payment-popover > div:last-child {
   display: flex;
   justify-content: flex-end;
@@ -1218,18 +1227,18 @@ option {
   min-height: 46px;
 }
 .receipt-print-area {
-  width: min(148mm, 100%);
-  min-height: 210mm;
-  padding: 10mm;
+  width: min(190mm, 100%);
+  min-height: 132mm;
+  padding: 7mm;
   color: #0f172a;
   background: #ffffff;
   border: 1px solid #d1d5db;
   border-radius: 8px;
-  margin: 0 auto;
+  margin: 0 0 0 auto;
 }
 .receipt-print-area.landscape {
-  width: min(210mm, 100%);
-  min-height: 148mm;
+  width: min(277mm, 100%);
+  min-height: 96mm;
 }
 .receipt-header {
   display: flex;
@@ -1261,7 +1270,15 @@ option {
   color: #0f766e;
   font-weight: 900;
 }
-.receipt-header h2 { margin: 4px 0 0; color: #0f172a; }
+.receipt-header h2 { margin: 0; color: #0f172a; font-size: 22px; line-height: 1.08; }
+.receipt-school-description {
+  max-width: 122mm;
+  margin: 4px 0;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
+}
 .receipt-header span {
   display: block;
   color: #0f766e;
@@ -1281,14 +1298,14 @@ option {
 }
 .receipt-info-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 18px;
-  margin: 22px 0 18px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px 14px;
+  margin: 14px 0 12px;
 }
 .receipt-info-grid div {
   display: grid;
   gap: 3px;
-  padding-bottom: 10px;
+  padding-bottom: 7px;
   border-bottom: 1px solid #e2e8f0;
 }
 .receipt-info-grid span { color: #64748b; font-size: 12px; }
@@ -3786,12 +3803,13 @@ td { color: var(--text); }
     background: white !important;
   }
   body.receipt-printing {
-    width: 138mm;
-    min-height: auto;
+    width: 210mm;
+    min-height: 297mm;
     overflow: visible !important;
   }
   body.receipt-printing.receipt-print-landscape {
-    width: 200mm;
+    width: 297mm;
+    min-height: 210mm;
   }
   body.receipt-printing .content-panel > :not(.modal-backdrop) {
     display: none !important;
@@ -3802,20 +3820,24 @@ td { color: var(--text); }
   body.receipt-printing .receipt-print-area {
     position: static;
     inset: 0 auto auto 0;
-    width: 138mm;
+    width: 190mm;
     height: auto;
     min-height: 0;
+    max-width: 190mm;
     max-height: none;
     overflow: visible;
-    padding: 5mm;
+    margin: 0 0 0 auto;
+    padding: 4.5mm;
     border: 0;
     border-radius: 0;
+    direction: ltr;
     break-inside: auto;
     page-break-inside: auto;
     page-break-after: auto;
   }
   body.receipt-printing.receipt-print-landscape .receipt-print-area {
-    width: 200mm;
+    width: 277mm;
+    max-width: 277mm;
   }
   body.receipt-printing .receipt-header {
     gap: 8px;
@@ -3826,14 +3848,20 @@ td { color: var(--text); }
   }
   body.receipt-printing .receipt-school-brand img,
   body.receipt-printing .receipt-logo-fallback {
-    width: 34px;
-    height: 34px;
-    flex-basis: 34px;
+    width: 38px;
+    height: 38px;
+    flex-basis: 38px;
   }
   body.receipt-printing .receipt-header h2 {
-    margin-top: 1px;
+    margin: 0;
     font-size: 16px;
     line-height: 1.1;
+  }
+  body.receipt-printing .receipt-school-description {
+    max-width: 122mm;
+    margin: 1mm 0;
+    font-size: 7.5px;
+    line-height: 1.2;
   }
   body.receipt-printing .receipt-header span,
   body.receipt-printing .receipt-number span {
@@ -3847,12 +3875,12 @@ td { color: var(--text); }
     word-break: break-word;
   }
   body.receipt-printing .receipt-info-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 2mm 3mm;
-    margin: 3mm 0 2.5mm;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1.7mm 3mm;
+    margin: 2.5mm 0 2mm;
   }
   body.receipt-printing.receipt-print-landscape .receipt-info-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
   body.receipt-printing .receipt-info-grid div {
     gap: 1px;

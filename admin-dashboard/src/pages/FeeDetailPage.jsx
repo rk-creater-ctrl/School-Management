@@ -6,6 +6,8 @@ import { requireRolePassword, requireSuperadminPassword } from "../utils/superad
 import { canUseRole, getStoredUser } from "../permissions";
 import { downloadReceiptHtml, printReceiptOnly } from "../utils/receiptPrint";
 import { getSchoolNameForClass } from "../utils/branding";
+import bellaMenteLogoUrl from "../../bella_mente_pre_schools_logo.jpg";
+import toddlerLogoUrl from "../../toddler_logo.png";
 
 const paymentModes = [
   { value: "monthly", label: "Monthly" },
@@ -14,6 +16,7 @@ const paymentModes = [
 ];
 
 const paymentMethodOptions = ["Cash", "Online", "UPI", "Card", "Bank Transfer", "Cheque", "Other"];
+const receiptSchoolDescription = "CBSE Pre-Play, Play, Day Care | Baisa Road, Near Railway Bridge, Katra (Kuthulia), Ward 46, Rewa MP 486001";
 
 const feeMonths = [
   "April",
@@ -283,6 +286,8 @@ function FeeDetailPage() {
       amount: Number(paymentDraft.amount || 0),
       paidDate: paymentDraft.paidDate || null,
       paymentMode: paymentDraft.paymentMode,
+      chequeNo: paymentDraft.chequeNo,
+      accountNo: paymentDraft.accountNo,
       concessionAmount: Number(paymentDraft.concessionAmount || 0),
       includeLateFees: Boolean(paymentDraft.includeLateFees),
       note: paymentDraft.note,
@@ -301,6 +306,8 @@ function FeeDetailPage() {
       amount: Number(paymentDraft.amount || 0),
       paidDate: paymentDraft.paidDate || null,
       paymentMode: paymentDraft.paymentMode,
+      chequeNo: paymentDraft.chequeNo,
+      accountNo: paymentDraft.accountNo,
       concessionAmount: Number(paymentDraft.concessionAmount || 0),
       includeLateFees: Boolean(paymentDraft.includeLateFees),
       note: paymentDraft.note,
@@ -319,7 +326,7 @@ function FeeDetailPage() {
     setPaymentDraft(createPaymentDraft());
   }
 
-  async function applyGroupPayment(group, paidDate, groupPaymentMode = "Cash", includeLateFees = false) {
+  async function applyGroupPayment(group, paidDate, groupPaymentMode = "Cash", includeLateFees = false, paymentDetails = {}) {
     if (!tuitionItem || !plan) return;
     const shouldMarkPaid = group.status !== "Paid";
     const monthsToToggle = group.months.filter((month) =>
@@ -339,6 +346,8 @@ function FeeDetailPage() {
           paidDate: paidDate || null,
           paymentMode: groupPaymentMode,
           receiptNo,
+          chequeNo: paymentDetails.chequeNo,
+          accountNo: paymentDetails.accountNo,
           includeLateFees,
           note,
         });
@@ -374,7 +383,10 @@ function FeeDetailPage() {
     if (!activeGroupPick) return;
     const allowed = await requireRolePassword("record fee payment", ["superadmin", "accountant"]);
     if (!allowed) return;
-    await applyGroupPayment(activeGroupPick, selectedDate || null, paymentDraft.paymentMode, Boolean(paymentDraft.includeLateFees));
+    await applyGroupPayment(activeGroupPick, selectedDate || null, paymentDraft.paymentMode, Boolean(paymentDraft.includeLateFees), {
+      chequeNo: paymentDraft.chequeNo,
+      accountNo: paymentDraft.accountNo,
+    });
     setActiveGroupPick(null);
     setSelectedDate("");
     setPaymentDraft(createPaymentDraft());
@@ -562,8 +574,12 @@ function FeeDetailPage() {
                 canPay={canManageFees}
                 includeLateFees={paymentDraft.includeLateFees}
                 paymentMedium={paymentDraft.paymentMode}
+                chequeNo={paymentDraft.chequeNo}
+                accountNo={paymentDraft.accountNo}
                 setIncludeLateFees={(value) => setPaymentDraft((current) => ({ ...current, includeLateFees: value }))}
                 setPaymentMedium={(value) => setPaymentDraft((current) => ({ ...current, paymentMode: value }))}
+                setChequeNo={(value) => setPaymentDraft((current) => ({ ...current, chequeNo: value }))}
+                setAccountNo={(value) => setPaymentDraft((current) => ({ ...current, accountNo: value }))}
                 selectedDate={selectedDate}
                 setSelectedDate={setSelectedDate}
                 tuitionItem={tuitionItem}
@@ -927,6 +943,16 @@ function PaymentPopover({ draft, lateFeeAmount = 0, maxAmount, onCancel, onChang
           {paymentMethodOptions.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
         </select>
       </label>
+      <div className="fee-payment-meta-grid">
+        <label>
+          <span>Cheque No.</span>
+          <input value={draft.chequeNo} onChange={(event) => update("chequeNo", event.target.value)} placeholder="Optional" />
+        </label>
+        <label>
+          <span>Account No.</span>
+          <input value={draft.accountNo} onChange={(event) => update("accountNo", event.target.value)} placeholder="Optional" />
+        </label>
+      </div>
       <label>
         <span>Note</span>
         <textarea value={draft.note} onChange={(event) => update("note", event.target.value)} placeholder="Optional" rows={2} />
@@ -1083,6 +1109,14 @@ function ReceiptModal({ onClose, receipt, student }) {
                 </select>
               </label>
               <label className="field">
+                <span>Cheque No.</span>
+                <input value={draft.chequeNo} onChange={(event) => updateDraft("chequeNo", event.target.value)} />
+              </label>
+              <label className="field">
+                <span>Account No.</span>
+                <input value={draft.accountNo} onChange={(event) => updateDraft("accountNo", event.target.value)} />
+              </label>
+              <label className="field">
                 <span>Discount</span>
                 <input type="number" min="0" value={draft.discountAmount} onChange={(event) => updateDraft("discountAmount", event.target.value)} />
               </label>
@@ -1131,8 +1165,9 @@ function ReceiptModal({ onClose, receipt, student }) {
                 <div className="receipt-logo-fallback">{getSchoolInitials(schoolName)}</div>
               )}
               <div>
-                <span>{schoolName}</span>
-                <h2>Fee Receipt</h2>
+                <h2>{schoolName}</h2>
+                <p className="receipt-school-description">{receiptSchoolDescription}</p>
+                <span>Fee Receipt</span>
               </div>
             </div>
             <div className="receipt-number">
@@ -1147,12 +1182,20 @@ function ReceiptModal({ onClose, receipt, student }) {
               <strong>{student?.name || receipt.studentName || "-"}</strong>
             </div>
             <div>
+              <span>Father Name</span>
+              <strong>{student?.fatherName || receipt.fatherName || "-"}</strong>
+            </div>
+            <div>
               <span>Admission No</span>
               <strong>{student?.admissionNo || receipt.admissionNo || "-"}</strong>
             </div>
             <div>
               <span>Class</span>
               <strong>{student?.className || receipt.className || "-"}</strong>
+            </div>
+            <div>
+              <span>Section</span>
+              <strong>{student?.section || receipt.section || "-"}</strong>
             </div>
             <div>
               <span>Academic Year</span>
@@ -1169,6 +1212,14 @@ function ReceiptModal({ onClose, receipt, student }) {
             <div>
               <span>Payment Medium</span>
               <strong>{draft.paymentMode || "Cash"}</strong>
+            </div>
+            <div>
+              <span>Cheque No.</span>
+              <strong>{draft.chequeNo || "-"}</strong>
+            </div>
+            <div>
+              <span>Account No.</span>
+              <strong>{draft.accountNo || "-"}</strong>
             </div>
           </section>
 
@@ -1267,7 +1318,8 @@ function useReceiptSchoolBranding(className = "") {
       .then((res) => {
         const settings = res.data?.[0]?.payload || {};
         const nextName = getSchoolNameForClass(settings, className);
-        const nextLogo = String(settings.logoUrl || "").trim();
+        const settingsLogo = String(settings.logoUrl || "").trim();
+        const nextLogo = getReceiptLogoUrl(nextName, className, settingsLogo);
         if (active) {
           setBranding({
             logoUrl: nextLogo,
@@ -1283,6 +1335,17 @@ function useReceiptSchoolBranding(className = "") {
   }, [className]);
 
   return branding;
+}
+
+function getReceiptLogoUrl(schoolName = "", className = "", fallbackLogoUrl = "") {
+  const normalizedName = `${schoolName} ${className}`.toLowerCase();
+  if (normalizedName.includes("savvy") || normalizedName.includes("toddler")) {
+    return toddlerLogoUrl;
+  }
+  if (normalizedName.includes("bella") || normalizedName.includes("mente") || normalizedName.includes("pre school") || normalizedName.includes("preschool")) {
+    return bellaMenteLogoUrl;
+  }
+  return fallbackLogoUrl;
 }
 
 function createReceiptDraft(receipt, receiptLines) {
@@ -1301,6 +1364,8 @@ function createReceiptDraft(receipt, receiptLines) {
     receiptNo: receipt.receiptNo || "",
     paidDate: toDateInputValue(receipt.paidDate),
     paymentMode: receipt.paymentMode || "Cash",
+    chequeNo: receipt.chequeNo || receipt.checkNo || "",
+    accountNo: receipt.accountNo || receipt.accountNumber || "",
     discountAmount: String(receiptLines.reduce((sum, line) => sum + Number(line.concessionAmount || 0), 0)),
     includeLateFees: false,
     note: mergeReceiptNotes(receipt, receiptLines),
@@ -1464,9 +1529,11 @@ function PaymentModeSelector({ mode, onChange }) {
 }
 
 function PaymentSchedule({
+  accountNo,
   academicYear,
   activeGroupPick,
   canPay,
+  chequeNo,
   includeLateFees,
   mode,
   onCancel,
@@ -1475,6 +1542,8 @@ function PaymentSchedule({
   paymentMedium,
   selectedDate,
   setIncludeLateFees,
+  setAccountNo,
+  setChequeNo,
   setPaymentMedium,
   setSelectedDate,
   tuitionItem,
@@ -1522,6 +1591,16 @@ function PaymentSchedule({
                     ))}
                   </select>
                 </label>
+                <div className="fee-payment-meta-grid">
+                  <label>
+                    <span>Cheque No.</span>
+                    <input value={chequeNo} onChange={(event) => setChequeNo(event.target.value)} placeholder="Optional" />
+                  </label>
+                  <label>
+                    <span>Account No.</span>
+                    <input value={accountNo} onChange={(event) => setAccountNo(event.target.value)} placeholder="Optional" />
+                  </label>
+                </div>
                 {group.lateFeeAmount > 0 && (
                   <label className="fee-check-row">
                     <input
@@ -1708,6 +1787,8 @@ function createPaymentDraft(amount = "") {
   return {
     amount: amount ? String(amount) : "",
     concessionAmount: "0",
+    chequeNo: "",
+    accountNo: "",
     includeLateFees: false,
     paidDate: todayInputDate(),
     paymentMode: "Cash",

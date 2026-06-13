@@ -64,6 +64,8 @@ export function extractFeeLedgerRows(feesOrPlan) {
             status: month.status || "Pending",
             paidDate: month.paidDate || null,
             paymentMode: month.paymentMode || "",
+            chequeNo: month.chequeNo || "",
+            accountNo: month.accountNo || "",
             note: month.paymentNote || "",
             source: "Tuition",
           };
@@ -80,6 +82,8 @@ export function extractFeeLedgerRows(feesOrPlan) {
             status: "Paid",
             paidDate: payment.paidDate || month.paidDate || null,
             paymentMode: payment.paymentMode || month.paymentMode || "",
+            chequeNo: payment.chequeNo || month.chequeNo || "",
+            accountNo: payment.accountNo || month.accountNo || "",
             note: payment.note || month.paymentNote || "",
           }));
         });
@@ -117,6 +121,8 @@ export function extractFeeLedgerRows(feesOrPlan) {
         status: item.status || "Pending",
         paidDate: item.paidDate || null,
         paymentMode: item.paymentMode || "",
+        chequeNo: item.chequeNo || "",
+        accountNo: item.accountNo || "",
         note: item.paymentNote || "",
         source: "Other",
       };
@@ -132,6 +138,8 @@ export function extractFeeLedgerRows(feesOrPlan) {
         status: "Paid",
         paidDate: payment.paidDate || item.paidDate || null,
         paymentMode: payment.paymentMode || item.paymentMode || "",
+        chequeNo: payment.chequeNo || item.chequeNo || "",
+        accountNo: payment.accountNo || item.accountNo || "",
         note: payment.note || item.paymentNote || "",
       }));
     })
