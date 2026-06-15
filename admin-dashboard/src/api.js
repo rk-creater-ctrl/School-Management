@@ -2,14 +2,16 @@
 import axios from "axios";
 import { getAuthToken } from "./utils/session";
 
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL: apiBaseUrl,
 });
 
-// Fail fast if env var isn't configured (prevents calling Vercel's /api by accident)
+// Warn (but don't hard-fail) to avoid breaking production when env isn't set.
 if (!import.meta.env.VITE_API_BASE_URL) {
   // eslint-disable-next-line no-console
-  console.error("VITE_API_BASE_URL is missing in environment variables.");
+  console.warn("VITE_API_BASE_URL missing; falling back to /api.");
 }
 
 api.interceptors.request.use((config) => {
