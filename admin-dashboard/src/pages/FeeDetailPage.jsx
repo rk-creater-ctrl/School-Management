@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { erpAPI, feesAPI, studentsAPI } from "../api";
@@ -5,6 +6,7 @@ import { extractFeeLedgerRows, formatCurrency } from "../utils/feeReports";
 import { requireRolePassword, requireSuperadminPassword } from "../utils/superadminGuard";
 import { canUseRole, getStoredUser } from "../permissions";
 import { downloadReceiptHtml, printReceiptOnly } from "../utils/receiptPrint";
+
 import { getSchoolNameForClass } from "../utils/branding";
 import bellaMenteLogoUrl from "../../bella_mente_pre_schools_logo.jpg";
 import toddlerLogoUrl from "../../toddler_logo.png";
@@ -16,7 +18,8 @@ const paymentModes = [
 ];
 
 const paymentMethodOptions = ["Cash", "Online", "UPI", "Card", "Bank Transfer", "Cheque", "Other"];
-const receiptSchoolDescription = "CBSE Pre-Play, Play, Day Care | Baisa Road, Near Railway Bridge, Katra (Kuthulia), Ward 46, Rewa MP 486001";
+const receiptSchoolDescription =
+  "CBSE Pre-Play, Play, Day Care | Baisa Road, Near Railway Bridge, Katra (Kuthulia), Ward 46, Rewa MP 486001";
 
 const feeMonths = [
   "April",
@@ -50,6 +53,7 @@ const calendarMonthIndex = {
   February: 1,
   March: 2,
 };
+
 const nextYearMonths = new Set(["January", "February", "March"]);
 
 function FeeDetailPage() {
@@ -87,35 +91,44 @@ function FeeDetailPage() {
     return ["monthly", "quarterly", "yearly"].includes(mode) ? mode : "monthly";
   });
 
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError("");
-      const [studentRes, planRes] = await Promise.all([
-        studentsAPI.getAll(),
-        feesAPI
-          .getForStudentYear(studentId, year)
-          .catch((err) =>
-            err.response?.status === 404 ? null : Promise.reject(err)
-          ),
-      ]);
+  const loadData = useCallback(
+    async () => {
+      try {
+        setLoading(true);
+        setError("");
+        const [studentRes, planRes] = await Promise.all([
+          studentsAPI.getAll(),
+          feesAPI
+            .getForStudentYear(studentId, year)
+            .catch((err) =>
+              err.response?.status === 404 ? null : Promise.reject(err)
+            ),
+        ]);
 
-      const s =
-        (studentRes.data || []).find((x) => x._id === studentId) || null;
-      const nextPlan = planRes?.data || null;
-      const nextTuitionItem =
-        nextPlan?.items?.find((i) => i.type === "TUITION" && i.mode === "MONTHLY") ||
-        null;
-      setStudent(s);
-      setPlan(nextPlan);
-      setLateFeeSetting(nextTuitionItem?.lateFeeAmount ? String(nextTuitionItem.lateFeeAmount) : "10");
-    } catch (err) {
-      console.error(err);
-      setError(err.response?.data?.error || "Failed to load fee detail");
-    } finally {
-      setLoading(false);
-    }
-  }, [studentId, year]);
+        const s =
+          (studentRes.data || []).find((x) => x._id === studentId) || null;
+        const nextPlan = planRes?.data || null;
+        const nextTuitionItem =
+          nextPlan?.items?.find(
+            (i) => i.type === "TUITION" && i.mode === "MONTHLY"
+          ) || null;
+
+        setStudent(s);
+        setPlan(nextPlan);
+        setLateFeeSetting(
+          nextTuitionItem?.lateFeeAmount
+            ? String(nextTuitionItem.lateFeeAmount)
+            : "10"
+        );
+      } catch (err) {
+        console.error(err);
+        setError(err.response?.data?.error || "Failed to load fee detail");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [studentId, year]
+  );
 
   useEffect(() => {
     // Existing page pattern: load remote fee data when the route changes.
@@ -124,7 +137,10 @@ function FeeDetailPage() {
   }, [loadData]);
 
   const tuitionItem = useMemo(
-    () => plan?.items?.find((i) => i.type === "TUITION" && i.mode === "MONTHLY") || null,
+    () =>
+      plan?.items?.find(
+        (i) => i.type === "TUITION" && i.mode === "MONTHLY"
+      ) || null,
     [plan]
   );
   const otherItems = useMemo(
@@ -132,7 +148,10 @@ function FeeDetailPage() {
     [plan]
   );
   const ledgerRows = useMemo(() => extractFeeLedgerRows(plan), [plan]);
-  const lateFeeTotal = useMemo(() => getLateFeeTotal(tuitionItem, otherItems), [tuitionItem, otherItems]);
+  const lateFeeTotal = useMemo(
+    () => getLateFeeTotal(tuitionItem, otherItems),
+    [tuitionItem, otherItems]
+  );
   const modeDueSummary = useMemo(
     () => getPaymentModeDueSummary(tuitionItem, otherItems, paymentMode, year),
     [tuitionItem, otherItems, paymentMode, year]
@@ -140,7 +159,10 @@ function FeeDetailPage() {
 
   async function handleCreateTuition(e) {
     e.preventDefault();
-    const allowed = await requireRolePassword("create tuition plan", ["superadmin", "accountant"]);
+    const allowed = await requireRolePassword("create tuition plan", [
+      "superadmin",
+      "accountant",
+    ]);
     if (!allowed) return;
     if (!monthlyAmount) {
       alert("Monthly amount is required");
@@ -164,10 +186,17 @@ function FeeDetailPage() {
 
   async function handleAddOtherFee(e) {
     e.preventDefault();
-    const allowed = await requireRolePassword("add fee item", ["superadmin", "accountant"]);
+    const allowed = await requireRolePassword("add fee item", [
+      "superadmin",
+      "accountant",
+    ]);
     if (!allowed) return;
     if (!otherLabel || !otherAmount || (otherType === "EXAM" && !otherMonth)) {
-      alert(otherType === "EXAM" ? "Fee name, amount, and exam month are required" : "Label and amount are required");
+      alert(
+        otherType === "EXAM"
+          ? "Fee name, amount, and exam month are required"
+          : "Label and amount are required"
+      );
       return;
     }
     try {
@@ -193,11 +222,18 @@ function FeeDetailPage() {
   async function handleLateFeeSetting(e) {
     e.preventDefault();
     if (!plan || !tuitionItem) return;
-    const allowed = await requireRolePassword("update late fee", ["superadmin", "accountant"]);
+    const allowed = await requireRolePassword("update late fee", [
+      "superadmin",
+      "accountant",
+    ]);
     if (!allowed) return;
 
     try {
-      await feesAPI.updateTuitionLateFee(plan._id, tuitionItem._id, Number(lateFeeSetting || 10));
+      await feesAPI.updateTuitionLateFee(
+        plan._id,
+        tuitionItem._id,
+        Number(lateFeeSetting || 10)
+      );
       await loadData();
     } catch (err) {
       console.error(err);
@@ -227,7 +263,10 @@ function FeeDetailPage() {
 
   async function handleToggleMonth(itemId, monthName, currentStatus) {
     if (currentStatus === "Paid") {
-      const allowed = await requireRolePassword("mark fee pending", ["superadmin", "accountant"]);
+      const allowed = await requireRolePassword("mark fee pending", [
+        "superadmin",
+        "accountant",
+      ]);
       if (!allowed) return;
       // Directly mark Pending
       await toggleMonthPaid(itemId, monthName, currentStatus, null);
@@ -262,7 +301,10 @@ function FeeDetailPage() {
 
   async function handleToggleItem(itemId, currentStatus) {
     if (currentStatus === "Paid") {
-      const allowed = await requireRolePassword("mark fee item pending", ["superadmin", "accountant"]);
+      const allowed = await requireRolePassword("mark fee item pending", [
+        "superadmin",
+        "accountant",
+      ]);
       if (!allowed) return;
       // Directly mark Pending
       await toggleItemPaid(itemId, currentStatus, null);
@@ -277,7 +319,10 @@ function FeeDetailPage() {
 
   async function confirmMonthDate() {
     if (!activeMonthPick) return;
-    const allowed = await requireRolePassword("record fee payment", ["superadmin", "accountant"]);
+    const allowed = await requireRolePassword("record fee payment", [
+      "superadmin",
+      "accountant",
+    ]);
     if (!allowed) return;
     const { itemId, monthName } = activeMonthPick;
     await feesAPI.recordMonthPayment(plan._id, {
@@ -299,7 +344,10 @@ function FeeDetailPage() {
 
   async function confirmItemDate() {
     if (!activeItemPick) return;
-    const allowed = await requireRolePassword("record fee payment", ["superadmin", "accountant"]);
+    const allowed = await requireRolePassword("record fee payment", [
+      "superadmin",
+      "accountant",
+    ]);
     if (!allowed) return;
     await feesAPI.recordItemPayment(plan._id, {
       itemId: activeItemPick,
@@ -326,7 +374,13 @@ function FeeDetailPage() {
     setPaymentDraft(createPaymentDraft());
   }
 
-  async function applyGroupPayment(group, paidDate, groupPaymentMode = "Cash", includeLateFees = false, paymentDetails = {}) {
+  async function applyGroupPayment(
+    group,
+    paidDate,
+    groupPaymentMode = "Cash",
+    includeLateFees = false,
+    paymentDetails = {}
+  ) {
     if (!tuitionItem || !plan) return;
     const shouldMarkPaid = group.status !== "Paid";
     const monthsToToggle = group.months.filter((month) =>
@@ -335,7 +389,8 @@ function FeeDetailPage() {
 
     if (shouldMarkPaid) {
       const receiptNo = createGroupedReceiptNo(plan, group);
-      const note = group.key === "yearly" ? "Yearly payment" : `${group.label} payment`;
+      const note =
+        group.key === "yearly" ? "Yearly payment" : `${group.label} payment`;
       for (const month of monthsToToggle) {
         const amount = getEntryBalanceAmount(month, includeLateFees);
         if (amount <= 0) continue;
@@ -357,7 +412,13 @@ function FeeDetailPage() {
     }
 
     for (const month of monthsToToggle) {
-      await feesAPI.toggleMonth(plan._id, tuitionItem._id, month.name, paidDate || null, groupPaymentMode);
+      await feesAPI.toggleMonth(
+        plan._id,
+        tuitionItem._id,
+        month.name,
+        paidDate || null,
+        groupPaymentMode
+      );
     }
 
     await loadData();
@@ -368,7 +429,10 @@ function FeeDetailPage() {
     setActiveItemPick(null);
 
     if (group.status === "Paid") {
-      const allowed = await requireRolePassword("mark fee group pending", ["superadmin", "accountant"]);
+      const allowed = await requireRolePassword("mark fee group pending", [
+        "superadmin",
+        "accountant",
+      ]);
       if (!allowed) return;
       await applyGroupPayment(group, null);
       return;
@@ -381,12 +445,21 @@ function FeeDetailPage() {
 
   async function confirmGroupDate() {
     if (!activeGroupPick) return;
-    const allowed = await requireRolePassword("record fee payment", ["superadmin", "accountant"]);
+    const allowed = await requireRolePassword("record fee payment", [
+      "superadmin",
+      "accountant",
+    ]);
     if (!allowed) return;
-    await applyGroupPayment(activeGroupPick, selectedDate || null, paymentDraft.paymentMode, Boolean(paymentDraft.includeLateFees), {
-      chequeNo: paymentDraft.chequeNo,
-      accountNo: paymentDraft.accountNo,
-    });
+    await applyGroupPayment(
+      activeGroupPick,
+      selectedDate || null,
+      paymentDraft.paymentMode,
+      Boolean(paymentDraft.includeLateFees),
+      {
+        chequeNo: paymentDraft.chequeNo,
+        accountNo: paymentDraft.accountNo,
+      }
+    );
     setActiveGroupPick(null);
     setSelectedDate("");
     setPaymentDraft(createPaymentDraft());
@@ -445,7 +518,13 @@ function FeeDetailPage() {
           Fee Structure
         </h1>
         {student && (
-          <p style={{ margin: "4px 0 0", color: "#6b7280", fontSize: "14px" }}>
+          <p
+            style={{
+              margin: "4px 0 0",
+              color: "#6b7280",
+              fontSize: "14px",
+            }}
+          >
             {student.name} • {student.className} • {student.admissionNo} •{" "}
             {year}
           </p>
@@ -476,23 +555,25 @@ function FeeDetailPage() {
             value={`Rs. ${lateFeeTotal}`}
             highlight={lateFeeTotal > 0}
           />
-          {isSuperadmin && <div>
-            <button
-              onClick={handleDeletePlan}
-              style={{
-                background: "#ef4444",
-                border: "none",
-                color: "white",
-                padding: "8px 16px",
-                borderRadius: "999px",
-                cursor: "pointer",
-                fontSize: "13px",
-                fontWeight: 600,
-              }}
-            >
-              Delete Plan
-            </button>
-          </div>}
+          {isSuperadmin && (
+            <div>
+              <button
+                onClick={handleDeletePlan}
+                style={{
+                  background: "#ef4444",
+                  border: "none",
+                  color: "white",
+                  padding: "8px 16px",
+                  borderRadius: "999px",
+                  cursor: "pointer",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                }}
+              >
+                Delete Plan
+              </button>
+            </div>
+          )}
         </section>
       )}
 
@@ -510,42 +591,42 @@ function FeeDetailPage() {
 
         {!tuitionItem ? (
           canManageFees ? (
-          <form
-            onSubmit={handleCreateTuition}
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "12px",
-              alignItems: "flex-end",
-            }}
-          >
-            <Input
-              label="Monthly Amount (Rs.)"
-              type="number"
-              value={monthlyAmount}
-              onChange={(e) => setMonthlyAmount(e.target.value)}
-            />
-            <Input
-              label="Late Fee Per Day (10th-30th)"
-              type="number"
-              value={lateFeeAmount}
-              onChange={(e) => setLateFeeAmount(e.target.value)}
-            />
-            <button
-              type="submit"
+            <form
+              onSubmit={handleCreateTuition}
               style={{
-                background: "#2563eb",
-                border: "none",
-                color: "white",
-                padding: "10px 18px",
-                borderRadius: "999px",
-                cursor: "pointer",
-                fontWeight: 600,
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "12px",
+                alignItems: "flex-end",
               }}
             >
-              Create tuition plan
-            </button>
-          </form>
+              <Input
+                label="Monthly Amount (Rs.)"
+                type="number"
+                value={monthlyAmount}
+                onChange={(e) => setMonthlyAmount(e.target.value)}
+              />
+              <Input
+                label="Late Fee Per Day (10th-30th)"
+                type="number"
+                value={lateFeeAmount}
+                onChange={(e) => setLateFeeAmount(e.target.value)}
+              />
+              <button
+                type="submit"
+                style={{
+                  background: "#2563eb",
+                  border: "none",
+                  color: "white",
+                  padding: "10px 18px",
+                  borderRadius: "999px",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                }}
+              >
+                Create tuition plan
+              </button>
+            </form>
           ) : (
             <div className="empty-state">Tuition plan not created.</div>
           )
@@ -558,7 +639,10 @@ function FeeDetailPage() {
               onSubmit={handleLateFeeSetting}
               tuitionItem={tuitionItem}
             />
-            <PaymentModeSelector mode={paymentMode} onChange={changePaymentMode} />
+            <PaymentModeSelector
+              mode={paymentMode}
+              onChange={changePaymentMode}
+            />
             {paymentMode !== "monthly" && (
               <PaymentSchedule
                 activeGroupPick={activeGroupPick}
@@ -576,116 +660,174 @@ function FeeDetailPage() {
                 paymentMedium={paymentDraft.paymentMode}
                 chequeNo={paymentDraft.chequeNo}
                 accountNo={paymentDraft.accountNo}
-                setIncludeLateFees={(value) => setPaymentDraft((current) => ({ ...current, includeLateFees: value }))}
-                setPaymentMedium={(value) => setPaymentDraft((current) => ({ ...current, paymentMode: value }))}
-                setChequeNo={(value) => setPaymentDraft((current) => ({ ...current, chequeNo: value }))}
-                setAccountNo={(value) => setPaymentDraft((current) => ({ ...current, accountNo: value }))}
+                setIncludeLateFees={(value) =>
+                  setPaymentDraft((current) => ({
+                    ...current,
+                    includeLateFees: value,
+                  }))
+                }
+                setPaymentMedium={(value) =>
+                  setPaymentDraft((current) => ({
+                    ...current,
+                    paymentMode: value,
+                  }))
+                }
+                setChequeNo={(value) =>
+                  setPaymentDraft((current) => ({
+                    ...current,
+                    chequeNo: value,
+                  }))
+                }
+                setAccountNo={(value) =>
+                  setPaymentDraft((current) => ({
+                    ...current,
+                    accountNo: value,
+                  }))
+                }
                 selectedDate={selectedDate}
                 setSelectedDate={setSelectedDate}
                 tuitionItem={tuitionItem}
               />
             )}
             {paymentMode === "monthly" && (
-          <div className="fee-monthly-table-card">
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: "13px",
-              }}
-            >
-              <thead style={{ background: "#f9fafb" }}>
-                <tr>
-                  <Th>Month</Th>
-                  <Th>Base Amount</Th>
-                  <Th>Concession</Th>
-                  <Th>Late Fee</Th>
-                  <Th>Payable</Th>
-                  <Th>Paid</Th>
-                  <Th>Due</Th>
-                  <Th>Status</Th>
-                  <Th>Mode</Th>
-                  <Th>Paid Date</Th>
-                  <Th>Action</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {tuitionItem.months.map((m) => {
-                  const isActive =
-                    activeMonthPick &&
-                    activeMonthPick.itemId === tuitionItem._id &&
-                    activeMonthPick.monthName === m.name;
-
-                  return (
-                    <tr key={m.name}>
-                      <Td>{m.name}</Td>
-                      <Td>{formatCurrency(m.amount)}</Td>
-                      <Td>{m.concessionAmount ? formatCurrency(m.concessionAmount) : "-"}</Td>
-                      <Td>{getMonthLateFeeAmount(m) ? formatCurrency(getMonthLateFeeAmount(m)) : "-"}</Td>
-                      <Td>{formatCurrency(getMonthPayableAmount(m))}</Td>
-                      <Td>{formatCurrency(getEntryPaidAmount(m, getMonthPayableAmount(m)))}</Td>
-                      <Td>{formatCurrency(getEntryDueAmount(m, year))}</Td>
-                      <Td
-                        style={{
-                          color:
-                            m.status === "Paid" ? "#16a34a" : m.status === "Partial" ? "#b45309" : "#b91c1c",
-                          fontWeight: 600,
-                        }}
-                      >
-                        {m.status}
-                      </Td>
-                      <Td>{m.paymentMode || "-"}</Td>
-                      <Td>
-                        {m.paidDate
-                          ? new Date(m.paidDate).toLocaleDateString("en-IN")
-                          : "-"}
-                      </Td>
-                      <Td>
-                        <div style={{ position: "relative" }}>
-                          {canManageFees ? <button
-                            style={{
-                              background:
-                                m.status === "Paid" ? "#e5e7eb" : "#16a34a",
-                              border: "none",
-                              padding: "4px 10px",
-                              borderRadius: "999px",
-                              cursor: "pointer",
-                              color:
-                                m.status === "Paid" ? "#111827" : "white",
-                              fontSize: "12px",
-                            }}
-                            onClick={() =>
-                              handleToggleMonth(
-                                tuitionItem._id,
-                                m.name,
-                                m.status
-                              )
-                            }
-                          >
-                            {m.status === "Paid" ? "Reset" : m.status === "Partial" ? "Receive Balance" : "Receive"}
-                          </button> : "-"}
-
-                          {isActive && (
-                            <PaymentPopover
-                              draft={paymentDraft}
-                              lateFeeAmount={getMonthLateFeeAmount(m)}
-                              maxAmount={getEntryBalanceAmount(m, paymentDraft.includeLateFees)}
-                              onCancel={() => {
-                                setActiveMonthPick(null);
-                                setPaymentDraft(createPaymentDraft());
-                              }}
-                              onChange={setPaymentDraft}
-                              onConfirm={confirmMonthDate}
-                            />
-                          )}
-                        </div>
-                      </Td>
+              <div className="fee-monthly-table-card">
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    fontSize: "13px",
+                  }}
+                >
+                  <thead style={{ background: "#f9fafb" }}>
+                    <tr>
+                      <Th>Month</Th>
+                      <Th>Base Amount</Th>
+                      <Th>Concession</Th>
+                      <Th>Late Fee</Th>
+                      <Th>Payable</Th>
+                      <Th>Paid</Th>
+                      <Th>Due</Th>
+                      <Th>Status</Th>
+                      <Th>Mode</Th>
+                      <Th>Paid Date</Th>
+                      <Th>Action</Th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody>
+                    {tuitionItem.months.map((m) => {
+                      const isActive =
+                        activeMonthPick &&
+                        activeMonthPick.itemId === tuitionItem._id &&
+                        activeMonthPick.monthName === m.name;
+
+                      return (
+                        <tr key={m.name}>
+                          <Td>{m.name}</Td>
+                          <Td>{formatCurrency(m.amount)}</Td>
+                          <Td>
+                            {m.concessionAmount
+                              ? formatCurrency(m.concessionAmount)
+                              : "-"}
+                          </Td>
+                          <Td>
+                            {getMonthLateFeeAmount(m)
+                              ? formatCurrency(getMonthLateFeeAmount(m))
+                              : "-"}
+                          </Td>
+                          <Td>{formatCurrency(getMonthPayableAmount(m))}</Td>
+                          <Td>
+                            {formatCurrency(
+                              getEntryPaidAmount(
+                                m,
+                                getMonthPayableAmount(m)
+                              )
+                            )}
+                          </Td>
+                          <Td>
+                            {formatCurrency(getEntryDueAmount(m, year))}
+                          </Td>
+                          <Td
+                            style={{
+                              color:
+                                m.status === "Paid"
+                                  ? "#16a34a"
+                                  : m.status === "Partial"
+                                  ? "#b45309"
+                                  : "#b91c1c",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {m.status}
+                          </Td>
+                          <Td>{m.paymentMode || "-"}</Td>
+                          <Td>
+                            {m.paidDate
+                              ? new Date(m.paidDate).toLocaleDateString(
+                                  "en-IN"
+                                )
+                              : "-"}
+                          </Td>
+                          <Td>
+                            <div style={{ position: "relative" }}>
+                              {canManageFees ? (
+                                <button
+                                  style={{
+                                    background:
+                                      m.status === "Paid"
+                                        ? "#e5e7eb"
+                                        : "#16a34a",
+                                    border: "none",
+                                    padding: "4px 10px",
+                                    borderRadius: "999px",
+                                    cursor: "pointer",
+                                    color:
+                                      m.status === "Paid"
+                                        ? "#111827"
+                                        : "white",
+                                    fontSize: "12px",
+                                  }}
+                                  onClick={() =>
+                                    handleToggleMonth(
+                                      tuitionItem._id,
+                                      m.name,
+                                      m.status
+                                    )
+                                  }
+                                >
+                                  {m.status === "Paid"
+                                    ? "Reset"
+                                    : m.status === "Partial"
+                                    ? "Receive Balance"
+                                    : "Receive"}
+                                </button>
+                              ) : (
+                                "-"
+                              )}
+
+                              {isActive && (
+                                <PaymentPopover
+                                  draft={paymentDraft}
+                                  lateFeeAmount={getMonthLateFeeAmount(m)}
+                                  maxAmount={getEntryBalanceAmount(
+                                    m,
+                                    paymentDraft.includeLateFees
+                                  )}
+                                  onCancel={() => {
+                                    setActiveMonthPick(null);
+                                    setPaymentDraft(createPaymentDraft());
+                                  }}
+                                  onChange={setPaymentDraft}
+                                  onConfirm={confirmMonthDate}
+                                />
+                              )}
+                            </div>
+                          </Td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </>
         )}
@@ -703,67 +845,72 @@ function FeeDetailPage() {
           Other Fees (Exam / Activity / Others)
         </h2>
 
-        {canManageFees && <form
-          onSubmit={handleAddOtherFee}
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "12px",
-            marginBottom: "16px",
-          }}
-        >
-          <Input
-            label="Fee Name"
-            value={otherLabel}
-            onChange={(e) => setOtherLabel(e.target.value)}
-          />
-          <Select
-            label="Type"
-            value={otherType}
-            onChange={(e) => {
-              setOtherType(e.target.value);
-              if (e.target.value !== "EXAM") setOtherMonth("");
+        {canManageFees && (
+          <form
+            onSubmit={handleAddOtherFee}
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "12px",
+              marginBottom: "16px",
             }}
-            options={[
-              { value: "EXAM", label: "Exam Fee" },
-              { value: "ACTIVITY", label: "Activity Fee" },
-              { value: "OTHER", label: "Other" },
-            ]}
-          />
-          {otherType === "EXAM" && (
+          >
+            <Input
+              label="Fee Name"
+              value={otherLabel}
+              onChange={(e) => setOtherLabel(e.target.value)}
+            />
             <Select
-              label="Exam Month"
-              value={otherMonth}
-              onChange={(e) => setOtherMonth(e.target.value)}
+              label="Type"
+              value={otherType}
+              onChange={(e) => {
+                setOtherType(e.target.value);
+                if (e.target.value !== "EXAM") setOtherMonth("");
+              }}
               options={[
-                { value: "", label: "Select exam month" },
-                ...feeMonths.map((month) => ({ value: month, label: month })),
+                { value: "EXAM", label: "Exam Fee" },
+                { value: "ACTIVITY", label: "Activity Fee" },
+                { value: "OTHER", label: "Other" },
               ]}
             />
-          )}
-          <Input
-            label="Amount (₹)"
-            type="number"
-            value={otherAmount}
-            onChange={(e) => setOtherAmount(e.target.value)}
-          />
-          <div style={{ alignSelf: "flex-end" }}>
-            <button
-              type="submit"
-              style={{
-                background: "#2563eb",
-                border: "none",
-                color: "white",
-                padding: "10px 18px",
-                borderRadius: "999px",
-                cursor: "pointer",
-                fontWeight: 600,
-              }}
-            >
-              + Add Fee
-            </button>
-          </div>
-        </form>}
+            {otherType === "EXAM" && (
+              <Select
+                label="Exam Month"
+                value={otherMonth}
+                onChange={(e) => setOtherMonth(e.target.value)}
+                options={[
+                  { value: "", label: "Select exam month" },
+                  ...feeMonths.map((month) => ({
+                    value: month,
+                    label: month,
+                  })),
+                ]}
+              />
+            )}
+            <Input
+              label="Amount (₹)"
+              type="number"
+              value={otherAmount}
+              onChange={(e) => setOtherAmount(e.target.value)}
+            />
+            <div style={{ alignSelf: "flex-end" }}>
+              <button
+                type="submit"
+                style={{
+                  background: "#2563eb",
+                  border: "none",
+                  color: "white",
+                  padding: "10px 18px",
+                  borderRadius: "999px",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                }}
+              >
+                + Add Fee
+              </button>
+            </div>
+          </form>
+        )}
 
         {otherItems.length === 0 ? (
           <div
@@ -821,15 +968,36 @@ function FeeDetailPage() {
                       <Td>{i.type}</Td>
                       <Td>{i.applicableMonth || "-"}</Td>
                       <Td>{formatCurrency(i.amount)}</Td>
-                      <Td>{i.concessionAmount ? formatCurrency(i.concessionAmount) : "-"}</Td>
-                      <Td>{getOneTimeLateFeeAmount(i) ? formatCurrency(getOneTimeLateFeeAmount(i)) : "-"}</Td>
+                      <Td>
+                        {i.concessionAmount
+                          ? formatCurrency(i.concessionAmount)
+                          : "-"}
+                      </Td>
+                      <Td>
+                        {getOneTimeLateFeeAmount(i)
+                          ? formatCurrency(getOneTimeLateFeeAmount(i))
+                          : "-"}
+                      </Td>
                       <Td>{formatCurrency(getOneTimePayableAmount(i))}</Td>
-                      <Td>{formatCurrency(getEntryPaidAmount(i, getOneTimePayableAmount(i)))}</Td>
-                      <Td>{formatCurrency(getEntryDueAmount(i, year))}</Td>
+                      <Td>
+                        {formatCurrency(
+                          getEntryPaidAmount(
+                            i,
+                            getOneTimePayableAmount(i)
+                          )
+                        )}
+                      </Td>
+                      <Td>
+                        {formatCurrency(getEntryDueAmount(i, year))}
+                      </Td>
                       <Td
                         style={{
                           color:
-                            i.status === "Paid" ? "#16a34a" : i.status === "Partial" ? "#b45309" : "#b91c1c",
+                            i.status === "Paid"
+                              ? "#16a34a"
+                              : i.status === "Partial"
+                              ? "#b45309"
+                              : "#b91c1c",
                           fontWeight: 600,
                         }}
                       >
@@ -843,38 +1011,36 @@ function FeeDetailPage() {
                       </Td>
                       <Td>
                         <div style={{ position: "relative" }}>
-                          {canManageFees ? <button
-                            style={{
-                              background:
-                                i.status === "Paid" ? "#e5e7eb" : "#16a34a",
-                              border: "none",
-                              padding: "4px 10px",
-                              borderRadius: "999px",
-                              cursor: "pointer",
-                              color:
-                                i.status === "Paid" ? "#111827" : "white",
-                              fontSize: "12px",
-                            }}
-                            onClick={() =>
-                              handleToggleItem(i._id, i.status)
-                            }
-                          >
-                            {i.status === "Paid" ? "Reset" : i.status === "Partial" ? "Receive Balance" : "Receive"}
-                          </button> : "-"}
-
-                          {isActive && (
-                            <PaymentPopover
-                              draft={paymentDraft}
-                              lateFeeAmount={getOneTimeLateFeeAmount(i)}
-                              maxAmount={getEntryBalanceAmount(i, paymentDraft.includeLateFees)}
-                              onCancel={() => {
-                                setActiveItemPick(null);
-                                setPaymentDraft(createPaymentDraft());
+                          {canManageFees ? (
+                            <button
+                              style={{
+                                background:
+                                  i.status === "Paid" ? "#e5e7eb" : "#16a34a",
+                                border: "none",
+                                padding: "4px 10px",
+                                borderRadius: "999px",
+                                cursor: "pointer",
+                                color:
+                                  i.status === "Paid"
+                                    ? "#111827"
+                                    : "white",
+                                fontSize: "12px",
                               }}
-                              onChange={setPaymentDraft}
-                              onConfirm={confirmItemDate}
-                            />
+                              onClick={() =>
+                                handleToggleItem(i._id, i.status)
+                              }
+                            >
+                              {i.status === "Paid"
+                                ? "Reset"
+                                : i.status === "Partial"
+                                ? "Receive Balance"
+                                : "Receive"}
+                            </button>
+                          ) : (
+                            "-"
                           )}
+
+                          
                         </div>
                       </Td>
                     </tr>
@@ -904,7 +1070,14 @@ function FeeDetailPage() {
   );
 }
 
-function PaymentPopover({ draft, lateFeeAmount = 0, maxAmount, onCancel, onChange, onConfirm }) {
+function PaymentPopover({
+  draft,
+  lateFeeAmount = 0,
+  maxAmount,
+  onCancel,
+  onChange,
+  onConfirm,
+}) {
   function update(field, value) {
     onChange((current) => ({ ...current, [field]: value }));
   }
@@ -920,112 +1093,195 @@ function PaymentPopover({ draft, lateFeeAmount = 0, maxAmount, onCancel, onChang
           <input
             type="checkbox"
             checked={Boolean(draft.includeLateFees)}
-            onChange={(event) => update("includeLateFees", event.target.checked)}
+            onChange={(event) =>
+              update("includeLateFees", event.target.checked)
+            }
           />
-          <span>Include late fees ({formatCurrency(lateFeeAmount)})</span>
+          <span>
+            Include late fees ({formatCurrency(lateFeeAmount)})
+          </span>
         </label>
       )}
       <label>
         <span>Paid amount</span>
-        <input type="number" min="1" value={draft.amount} onChange={(event) => update("amount", event.target.value)} placeholder="Enter amount" />
+        <input
+          type="number"
+          min="1"
+          value={draft.amount}
+          onChange={(event) => update("amount", event.target.value)}
+          placeholder="Enter amount"
+        />
       </label>
       <label>
         <span>Concession / Discount</span>
-        <input type="number" min="0" value={draft.concessionAmount} onChange={(event) => update("concessionAmount", event.target.value)} />
+        <input
+          type="number"
+          min="0"
+          value={draft.concessionAmount}
+          onChange={(event) =>
+            update("concessionAmount", event.target.value)
+          }
+        />
       </label>
       <label>
         <span>Payment date</span>
-        <input type="date" value={draft.paidDate} onChange={(event) => update("paidDate", event.target.value)} />
+        <input
+          type="date"
+          value={draft.paidDate}
+          onChange={(event) => update("paidDate", event.target.value)}
+        />
       </label>
       <label>
         <span>Payment medium</span>
-        <select value={draft.paymentMode} onChange={(event) => update("paymentMode", event.target.value)}>
-          {paymentMethodOptions.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
+        <select
+          value={draft.paymentMode}
+          onChange={(event) => update("paymentMode", event.target.value)}
+        >
+          {paymentMethodOptions.map((mode) => (
+            <option key={mode} value={mode}>
+              {mode}
+            </option>
+          ))}
         </select>
       </label>
       <div className="fee-payment-meta-grid">
         <label>
           <span>Cheque No.</span>
-          <input value={draft.chequeNo} onChange={(event) => update("chequeNo", event.target.value)} placeholder="Optional" />
+          <input
+            value={draft.chequeNo}
+            onChange={(event) => update("chequeNo", event.target.value)}
+            placeholder="Optional"
+          />
         </label>
         <label>
           <span>Account No.</span>
-          <input value={draft.accountNo} onChange={(event) => update("accountNo", event.target.value)} placeholder="Optional" />
+          <input
+            value={draft.accountNo}
+            onChange={(event) => update("accountNo", event.target.value)}
+            placeholder="Optional"
+          />
         </label>
       </div>
       <label>
         <span>Note</span>
-        <textarea value={draft.note} onChange={(event) => update("note", event.target.value)} placeholder="Optional" rows={2} />
+        <textarea
+          value={draft.note}
+          onChange={(event) => update("note", event.target.value)}
+          placeholder="Optional"
+          rows={2}
+        />
       </label>
       <div>
-        <button className="secondary-button" type="button" onClick={onCancel}>Cancel</button>
-        <button className="primary-button" type="button" onClick={onConfirm}>Save Payment</button>
+        <button
+          className="secondary-button"
+          type="button"
+          onClick={onCancel}
+        >
+          Cancel
+        </button>
+        <button
+          className="primary-button"
+          type="button"
+          onClick={onConfirm}
+        >
+          Save Payment
+        </button>
       </div>
     </div>
   );
 }
 
-function FeeLedger({ ledgerRows, onReceipt }) {
-  const paidRows = ledgerRows.filter((row) => row.status === "Paid");
-  const totalPaid = paidRows.reduce((sum, row) => sum + row.amount, 0);
 
-  function openReceipt(row) {
-    onReceipt(buildReceiptFromLedger(row, ledgerRows));
-  }
+
+
+
+function FeeLedger({ ledgerRows, onReceipt }) {
+  const rows = Array.isArray(ledgerRows) ? ledgerRows : [];
 
   return (
     <section className="fee-ledger-section">
       <div className="section-heading">
         <div>
-          <span className="eyebrow">Fees</span>
-          <h3>Receipts & Ledger</h3>
+          <span className="eyebrow">Ledger</span>
+          <h3>Fee Ledger</h3>
         </div>
-        <strong>{formatCurrency(totalPaid)}</strong>
       </div>
       <div className="responsive-table">
         <table>
           <thead>
             <tr>
               <th>Receipt</th>
+              <th>Source</th>
               <th>Fee</th>
               <th>Period</th>
               <th>Base</th>
-              <th>Late Fee</th>
               <th>Concession</th>
-              <th>Amount</th>
-              <th>Mode</th>
+              <th>Late Fee</th>
+              <th>Paid</th>
+              <th>Due</th>
               <th>Status</th>
-              <th>Paid Date</th>
+              <th>Mode</th>
+              <th>Date</th>
               <th>Action</th>
             </tr>
           </thead>
           <tbody>
-            {ledgerRows.map((row) => (
-              <tr key={row.id}>
-                <td>{row.status === "Paid" ? row.receiptNo : "-"}</td>
-                <td>{row.label}</td>
-                <td>{row.period}</td>
-                <td>{formatCurrency(row.baseAmount || row.amount)}</td>
-                <td>{row.lateFeeAmount ? formatCurrency(row.lateFeeAmount) : "-"}</td>
-                <td>{row.concessionAmount ? formatCurrency(row.concessionAmount) : "-"}</td>
-                <td>{formatCurrency(row.amount)}</td>
-                <td>{row.paymentMode || "-"}</td>
-                <td>{row.status}</td>
-                <td>{row.paidDate ? new Date(row.paidDate).toLocaleDateString("en-IN") : "-"}</td>
-                <td>
-                  {row.status === "Paid" ? (
-                    <button className="ghost-button table-action" type="button" onClick={() => openReceipt(row)}>
-                      Receipt
-                    </button>
-                  ) : (
-                    "-"
-                  )}
-                </td>
-              </tr>
-            ))}
-            {ledgerRows.length === 0 && (
+            {rows.map((row) => {
+              const canPrintReceipt = row.status === "Paid" && row.paidDate;
+
+              return (
+                <tr key={row.id}>
+                  <td>{row.receiptNo || "-"}</td>
+                  <td>{row.source || "-"}</td>
+                  <td>{row.label || "-"}</td>
+                  <td>{row.period || "-"}</td>
+                  <td>{formatCurrency(row.baseAmount || row.amount || 0)}</td>
+                  <td>
+                    {row.concessionAmount
+                      ? formatCurrency(row.concessionAmount)
+                      : "-"}
+                  </td>
+                  <td>
+                    {row.lateFeeAmount
+                      ? formatCurrency(row.lateFeeAmount)
+                      : "-"}
+                  </td>
+                  <td>{formatCurrency(row.paidAmount || 0)}</td>
+                  <td>{formatCurrency(row.dueAmount || 0)}</td>
+                  <td
+                    className={`fee-status ${String(
+                      row.status || ""
+                    ).toLowerCase()}`}
+                  >
+                    {row.status || "Pending"}
+                  </td>
+                  <td>{row.paymentMode || "-"}</td>
+                  <td>
+                    {row.paidDate
+                      ? new Date(row.paidDate).toLocaleDateString("en-IN")
+                      : "-"}
+                  </td>
+                  <td>
+                    {canPrintReceipt ? (
+                      <button
+                        className="secondary-button"
+                        type="button"
+                        onClick={() =>
+                          onReceipt(buildReceiptFromLedger(row, rows))
+                        }
+                      >
+                        Receipt
+                      </button>
+                    ) : (
+                      "-"
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+            {rows.length === 0 && (
               <tr>
-                  <td colSpan="11">No ledger entries.</td>
+                <td colSpan="13">No fee ledger entries.</td>
               </tr>
             )}
           </tbody>
@@ -1035,49 +1291,118 @@ function FeeLedger({ ledgerRows, onReceipt }) {
   );
 }
 
-function ReceiptModal({ onClose, receipt, student }) {
+function LegacyReceiptModal({ onClose, receipt, student }) {
   const receiptClassName = student?.className || receipt.className || "";
   const { logoUrl, schoolName } = useReceiptSchoolBranding(receiptClassName);
+
   const receiptLines = useMemo(
     () => (receipt.lines?.length ? receipt.lines : [receipt]),
     [receipt]
   );
-  const [isEditing, setIsEditing] = useState(false);
-  const [printOrientation, setPrintOrientation] = useState("portrait");
-  const [draft, setDraft] = useState(() => createReceiptDraft(receipt, receiptLines));
+
+  const [printOrientation, setPrintOrientation] = useState("landscape");
+  const [draft] = useState(() =>
+    createReceiptDraft(receipt, receiptLines)
+  );
+
   const receiptRef = useRef(null);
-  const lateFeeAmount = draft.includeLateFees
-    ? draft.lines.reduce((sum, line) => sum + Number(line.lateFeeAmount || 0), 0)
-    : 0;
-  const feeAmount = draft.lines.reduce(
-    (sum, line) => sum + getReceiptLineFeeAmount(line, draft.includeLateFees),
-    0
-  );
-  const paidAmount = draft.lines.reduce(
-    (sum, line) => sum + getReceiptLinePaidAmount(line, draft.includeLateFees),
-    0
-  );
-  const discountAmount = Number(draft.discountAmount || 0);
+
   const paidDate = parseDateInput(draft.paidDate);
 
-  function updateDraft(field, value) {
-    setDraft((current) => ({ ...current, [field]: value }));
+  const [blocks, setBlocks] = useState(() =>
+    createReceiptDefaultBlocks(draft)
+  );
+
+  function addTextBlock() {
+    setBlocks((cur) => [
+      ...cur,
+      {
+        type: "text",
+        id:
+          (typeof crypto !== "undefined" && crypto.randomUUID?.()) ||
+          String(Date.now()) + Math.random(),
+        text: "",
+      },
+    ]);
   }
 
-  function updateLine(index, field, value) {
-    setDraft((current) => ({
-      ...current,
-      lines: current.lines.map((line, lineIndex) =>
-        lineIndex === index ? { ...line, [field]: value } : line
-      ),
-    }));
+  function addTableBlock() {
+    setBlocks((cur) => [
+      ...cur,
+      {
+        type: "table",
+        id:
+          (typeof crypto !== "undefined" && crypto.randomUUID?.()) ||
+          String(Date.now()) + Math.random(),
+        columns: ["Particulars", "Amount"],
+        rows: [{ id: String(Date.now()), cells: ["", ""] }],
+      },
+    ]);
+  }
+
+  function updateBlock(blockId, updater) {
+    setBlocks((cur) => cur.map((b) => (b.id === blockId ? updater(b) : b)));
+  }
+
+  function removeBlock(blockId) {
+    setBlocks((cur) => cur.filter((b) => b.id !== blockId));
   }
 
   function handleDownloadReceipt() {
-    downloadReceiptHtml(receiptRef.current, {
-      filename: draft.receiptNo || "fee-receipt",
-      orientation: printOrientation,
-    });
+    // Intentionally disabled: browser downloads can be blocked, causing "receipt is not opening" issues.
+    // Use Print Receipt button instead.
+  }
+
+  function renderBlocksForReceiptCopy() {
+    return (
+      <>
+        {blocks.map((block) => {
+          if (block.type === "text") {
+            return (
+              <section key={block.id} className="receipt-note-box">
+                <span>Note</span>
+                <p style={{ whiteSpace: "pre-wrap" }}>
+                  {block.text || " "}
+                </p>
+              </section>
+            );
+          }
+
+          if (block.type === "table") {
+            return (
+              <table key={block.id} className="receipt-lines">
+                <thead>
+                  <tr>
+                    {block.columns.map((c) => (
+                      <th key={c}>{c}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {block.rows.map((r) => (
+                    <tr key={r.id}>
+                      {r.cells.map((cell, idx) => (
+                        <td key={idx}>{cell || ""}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            );
+          }
+
+          return null;
+        })}
+
+        <footer className="receipt-footer">
+          <span>Amount received for the period shown above.</span>
+          <div className="receipt-signature">
+            <span>For {schoolName}</span>
+            <strong>Authorized Signatory</strong>
+          </div>
+        </footer>
+      </>
+    );
   }
 
   return (
@@ -1088,203 +1413,305 @@ function ReceiptModal({ onClose, receipt, student }) {
             <span className="eyebrow">Receipt</span>
             <h3>{draft.receiptNo}</h3>
           </div>
-          <button className="icon-button" type="button" onClick={onClose}>x</button>
+          <button
+            className="icon-button"
+            type="button"
+            onClick={onClose}
+          >
+            x
+          </button>
         </div>
 
-        {isEditing && (
-          <div className="receipt-edit-panel no-print">
-            <div className="receipt-edit-grid">
-              <label className="field">
-                <span>Receipt no.</span>
-                <input value={draft.receiptNo} onChange={(event) => updateDraft("receiptNo", event.target.value)} />
-              </label>
-              <label className="field">
-                <span>Paid date</span>
-                <input type="date" value={draft.paidDate} onChange={(event) => updateDraft("paidDate", event.target.value)} />
-              </label>
-              <label className="field">
-                <span>Payment medium</span>
-                <select value={draft.paymentMode} onChange={(event) => updateDraft("paymentMode", event.target.value)}>
-                  {paymentMethodOptions.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
-                </select>
-              </label>
-              <label className="field">
-                <span>Cheque No.</span>
-                <input value={draft.chequeNo} onChange={(event) => updateDraft("chequeNo", event.target.value)} />
-              </label>
-              <label className="field">
-                <span>Account No.</span>
-                <input value={draft.accountNo} onChange={(event) => updateDraft("accountNo", event.target.value)} />
-              </label>
-              <label className="field">
-                <span>Discount</span>
-                <input type="number" min="0" value={draft.discountAmount} onChange={(event) => updateDraft("discountAmount", event.target.value)} />
-              </label>
-              <label className="checkbox-field receipt-late-toggle">
-                <input
-                  checked={draft.includeLateFees}
-                  onChange={(event) => updateDraft("includeLateFees", event.target.checked)}
-                  type="checkbox"
-                />
-                <span>Include late fees</span>
-              </label>
-            </div>
-
-            <div className="receipt-edit-lines">
-              {draft.lines.map((line, index) => (
-                <div className="receipt-edit-line" key={line.id || index}>
-                  <label className="field">
-                    <span>Particulars</span>
-                    <input value={line.label} onChange={(event) => updateLine(index, "label", event.target.value)} />
-                  </label>
-                  <label className="field">
-                    <span>Period</span>
-                    <input value={line.period} onChange={(event) => updateLine(index, "period", event.target.value)} />
-                  </label>
-                  <label className="field">
-                    <span>Paid amount</span>
-                    <input type="number" min="0" value={line.amount} onChange={(event) => updateLine(index, "amount", event.target.value)} />
-                  </label>
-                </div>
-              ))}
-            </div>
-
-            <label className="field">
-              <span>Note</span>
-              <textarea value={draft.note} onChange={(event) => updateDraft("note", event.target.value)} rows={3} />
-            </label>
+        {/* Content editor (no editing of ledger/system fields) */}
+        <div className="no-print" style={{ paddingBottom: 12 }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+              marginBottom: 10,
+            }}
+          >
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={addTextBlock}
+            >
+              + Add Text
+            </button>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={addTableBlock}
+            >
+              + Add Table
+            </button>
           </div>
-        )}
 
-        <div className={`receipt-a4-page ${printOrientation}`} ref={receiptRef}>
-          <article className={`receipt-print-area ${printOrientation}`}>
-            <header className="receipt-header">
-              <div className="receipt-school-brand">
-                {logoUrl ? (
-                  <img src={logoUrl} alt={`${schoolName} logo`} />
-                ) : (
-                  <div className="receipt-logo-fallback">{getSchoolInitials(schoolName)}</div>
-                )}
-                <div>
-                  <h2>{schoolName}</h2>
-                  <p className="receipt-school-description">{receiptSchoolDescription}</p>
-                  <span>Fee Receipt</span>
+          {blocks.map((block) => (
+            <div
+              key={block.id}
+              style={{
+                border: "1px solid #e5e7eb",
+                borderRadius: 10,
+                padding: 12,
+                marginBottom: 10,
+                background: "#fff",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <strong>
+                  {block.type === "text" ? "Text Block" : "Table Block"}
+                </strong>
+                <button
+                  className="ghost-button"
+                  type="button"
+                  onClick={() => removeBlock(block.id)}
+                >
+                  Remove
+                </button>
+              </div>
+
+              {block.type === "text" && (
+                <label style={{ display: "block", marginTop: 8 }}>
+                  <span
+                    style={{
+                      display: "block",
+                      fontSize: 13,
+                      marginBottom: 6,
+                      color: "#6b7280",
+                    }}
+                  >
+                    Text
+                  </span>
+                  <textarea
+                    rows={3}
+                    value={block.text}
+                    onChange={(e) =>
+                      updateBlock(block.id, (b) => ({
+                        ...b,
+                        text: e.target.value,
+                      }))
+                    }
+                    style={{ width: "100%" }}
+                  />
+                </label>
+              )}
+
+              {block.type === "table" && (
+                <div style={{ marginTop: 8 }}>
+                  {block.rows.map((row, rowIdx) => (
+                    <div
+                      key={row.id}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 160px 40px",
+                        gap: 8,
+                        marginBottom: 8,
+                        alignItems: "center",
+                      }}
+                    >
+                      <input
+                        value={row.cells[0]}
+                        placeholder="Particulars"
+                        onChange={(e) =>
+                          updateBlock(block.id, (b) => {
+                            const rows = b.rows.map((rr, i) =>
+                              i === rowIdx
+                                ? {
+                                    ...rr,
+                                    cells: [e.target.value, rr.cells[1]],
+                                  }
+                                : rr
+                            );
+                            return { ...b, rows };
+                          })
+                        }
+                      />
+                      <input
+                        value={row.cells[1]}
+                        placeholder="Amount"
+                        onChange={(e) =>
+                          updateBlock(block.id, (b) => {
+                            const rows = b.rows.map((rr, i) =>
+                              i === rowIdx
+                                ? {
+                                    ...rr,
+                                    cells: [rr.cells[0], e.target.value],
+                                  }
+                                : rr
+                            );
+                            return { ...b, rows };
+                          })
+                        }
+                      />
+                      <button
+                        type="button"
+                        className="ghost-button"
+                        onClick={() =>
+                          updateBlock(block.id, (b) => ({
+                            ...b,
+                            rows: b.rows.filter((_, i) => i !== rowIdx),
+                          }))
+                        }
+                      >
+                        x
+                      </button>
+                    </div>
+                  ))}
+
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={() =>
+                      updateBlock(block.id, (b) => ({
+                        ...b,
+                        rows: [
+                          ...b.rows,
+                          { id: String(Date.now()), cells: ["", ""] },
+                        ],
+                      }))
+                    }
+                  >
+                    + Add Row
+                  </button>
                 </div>
-              </div>
-              <div className="receipt-number">
-                <span>Receipt No</span>
-                <strong>{draft.receiptNo || "-"}</strong>
-              </div>
-            </header>
+              )}
+            </div>
+          ))}
+        </div>
 
-            <section className="receipt-info-grid">
-              <div>
-                <span>Student</span>
-                <strong>{student?.name || receipt.studentName || "-"}</strong>
-              </div>
-              <div>
-                <span>Father Name</span>
-                <strong>{student?.fatherName || receipt.fatherName || "-"}</strong>
-              </div>
-              <div>
-                <span>Admission No</span>
-                <strong>{student?.admissionNo || receipt.admissionNo || "-"}</strong>
-              </div>
-              <div>
-                <span>Class</span>
-                <strong>{student?.className || receipt.className || "-"}</strong>
-              </div>
-              <div>
-                <span>Section</span>
-                <strong>{student?.section || receipt.section || "-"}</strong>
-              </div>
-              <div>
-                <span>Academic Year</span>
-                <strong>{receipt.academicYear || "-"}</strong>
-              </div>
-              <div>
-                <span>Paid For</span>
-                <strong>{receipt.periodRange || receipt.period || "-"}</strong>
-              </div>
-              <div>
-                <span>Paid Date</span>
-                <strong>{paidDate.toLocaleDateString("en-IN")}</strong>
-              </div>
-              <div>
-                <span>Payment Medium</span>
-                <strong>{draft.paymentMode || "Cash"}</strong>
-              </div>
-              <div>
-                <span>Cheque No.</span>
-                <strong>{draft.chequeNo || "-"}</strong>
-              </div>
-              <div>
-                <span>Account No.</span>
-                <strong>{draft.accountNo || "-"}</strong>
-              </div>
-            </section>
+        <div
+          className={`receipt-a4-page ${printOrientation}`}
+          ref={receiptRef}
+        >
+          <div className="receipt-two-up">
+            {[
+              { label: "Student Copy", isStudent: true },
+              { label: "Copy", isStudent: false },
+            ].map((copy) => (
+              <article key={copy.label} className="receipt-copy">
+                <article
+                  className={`receipt-print-area ${printOrientation}`}
+                >
+                  <header className="receipt-header">
+                    <div className="receipt-school-brand">
+                      {logoUrl ? (
+                        <img
+                          src={logoUrl}
+                          alt={`${schoolName} logo`}
+                        />
+                      ) : (
+                        <div className="receipt-logo-fallback">
+                          {getSchoolInitials(schoolName)}
+                        </div>
+                      )}
+                      <div>
+                        <h2>{schoolName}</h2>
+                        <p className="receipt-school-description">
+                          {receiptSchoolDescription}
+                        </p>
+                        <span>Fee Receipt</span>
+                      </div>
+                    </div>
+                    <div className="receipt-number">
+                      <span>Receipt No</span>
+                      <strong>{draft.receiptNo || "-"}</strong>
+                    </div>
+                  </header>
 
-            <table className="receipt-lines">
-              <thead>
-                <tr>
-                  <th>Particulars</th>
-                  <th>Period</th>
-                  <th>Fee</th>
-                  <th>Paid Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {draft.lines.map((line, index) => (
-                  <tr key={line.id || index}>
-                    <td>{line.label}</td>
-                    <td>{line.period}</td>
-                    <td>{formatCurrency(getReceiptLineFeeAmount(line, draft.includeLateFees))}</td>
-                    <td>{formatCurrency(getReceiptLinePaidAmount(line, draft.includeLateFees))}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td colSpan="3">Total Fee</td>
-                  <td>{formatCurrency(feeAmount)}</td>
-                </tr>
-                {draft.includeLateFees && lateFeeAmount > 0 && (
-                  <tr>
-                    <td colSpan="3">Late Fees</td>
-                    <td>{formatCurrency(lateFeeAmount)}</td>
-                  </tr>
-                )}
-                <tr>
-                  <td colSpan="3">Discount</td>
-                  <td>{discountAmount ? formatCurrency(discountAmount) : "-"}</td>
-                </tr>
-                <tr>
-                  <td colSpan="3">Total Amount</td>
-                  <td>{formatCurrency(paidAmount)}</td>
-                </tr>
-              </tfoot>
-            </table>
+                  <section className="receipt-info-grid">
+                    <div>
+                      <span>Student</span>
+                      <strong>
+                        {student?.name || receipt.studentName || "-"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Father Name</span>
+                      <strong>
+                        {student?.fatherName ||
+                          receipt.fatherName ||
+                          "-"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Admission No</span>
+                      <strong>
+                        {student?.admissionNo ||
+                          receipt.admissionNo ||
+                          "-"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Class</span>
+                      <strong>
+                        {student?.className ||
+                          receipt.className ||
+                          "-"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Section</span>
+                      <strong>
+                        {student?.section || receipt.section || "-"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Academic Year</span>
+                      <strong>{receipt.academicYear || "-"}</strong>
+                    </div>
+                    <div>
+                      <span>Paid For</span>
+                      <strong>
+                        {receipt.periodRange ||
+                          receipt.period ||
+                          "-"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Paid Date</span>
+                      <strong>
+                        {paidDate.toLocaleDateString("en-IN")}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Payment Medium</span>
+                      <strong>{draft.paymentMode || "Cash"}</strong>
+                    </div>
+                    <div>
+                      <span>Cheque No.</span>
+                      <strong>{draft.chequeNo || "-"}</strong>
+                    </div>
+                    <div>
+                      <span>Account No.</span>
+                      <strong>{draft.accountNo || "-"}</strong>
+                    </div>
+                    <div>
+                      <span>Receipt Type</span>
+                      <strong>{copy.label}</strong>
+                    </div>
+                  </section>
 
-            <section className="receipt-note-box">
-              <span>Note</span>
-              <p>{draft.note || " "}</p>
-            </section>
-
-            <footer className="receipt-footer">
-              <span>Amount received for the period shown above.</span>
-              <div className="receipt-signature">
-                <span>For {schoolName}</span>
-                <strong>Authorized Signatory</strong>
-              </div>
-            </footer>
-          </article>
+                  {renderBlocksForReceiptCopy()}
+                </article>
+              </article>
+            ))}
+          </div>
         </div>
 
         <div className="receipt-actions no-print">
-          <button className="secondary-button" type="button" onClick={() => setIsEditing((current) => !current)}>
-            {isEditing ? "Preview Receipt" : "Edit Receipt"}
-          </button>
-          <div className="receipt-orientation-toggle" role="group" aria-label="Print layout">
+          <div
+            className="receipt-orientation-toggle"
+            role="group"
+            aria-label="Print layout"
+          >
             <span>Print layout</span>
             <button
               className={printOrientation === "portrait" ? "active" : ""}
@@ -1301,50 +1728,54 @@ function ReceiptModal({ onClose, receipt, student }) {
               Landscape
             </button>
           </div>
-          <button className="secondary-button" type="button" onClick={handleDownloadReceipt}>Download Receipt</button>
-          <button className="secondary-button" type="button" onClick={onClose}>Close</button>
-          <button className="primary-button" type="button" onClick={() => printReceiptOnly(printOrientation)}>Print Receipt</button>
+          {/* Download can be blocked by popup/download restrictions; use Print instead */}
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => printReceiptOnly(printOrientation)}
+          >
+            Download Receipt
+          </button>
+
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={onClose}
+          >
+            Close
+          </button>
+          <button
+            className="primary-button"
+            type="button"
+            onClick={() => printReceiptOnly(printOrientation)}
+          >
+            Print Receipt
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-function useReceiptSchoolBranding(className = "") {
-  const [branding, setBranding] = useState({ logoUrl: "", schoolName: "School" });
 
-  useEffect(() => {
-    let active = true;
-    erpAPI
-      .list("schoolSettings")
-      .then((res) => {
-        const settings = res.data?.[0]?.payload || {};
-        const nextName = getSchoolNameForClass(settings, className);
-        const settingsLogo = String(settings.logoUrl || "").trim();
-        const nextLogo = getReceiptLogoUrl(nextName, className, settingsLogo);
-        if (active) {
-          setBranding({
-            logoUrl: nextLogo,
-            schoolName: nextName || "School",
-          });
-        }
-      })
-      .catch(() => {});
+// (duplicate removed) useReceiptSchoolBranding is defined once below.
 
-    return () => {
-      active = false;
-    };
-  }, [className]);
 
-  return branding;
-}
-
-function getReceiptLogoUrl(schoolName = "", className = "", fallbackLogoUrl = "") {
+function getReceiptLogoUrl(
+  schoolName = "",
+  className = "",
+  fallbackLogoUrl = ""
+) {
   const normalizedName = `${schoolName} ${className}`.toLowerCase();
   if (normalizedName.includes("savvy") || normalizedName.includes("toddler")) {
     return toddlerLogoUrl;
   }
-  if (normalizedName.includes("bella") || normalizedName.includes("mente") || normalizedName.includes("pre school") || normalizedName.includes("preschool")) {
+  if (
+    normalizedName.includes("bella") ||
+    normalizedName.includes("mente") ||
+    normalizedName.includes("pre school") ||
+    normalizedName.includes("preschool")
+  ) {
     return bellaMenteLogoUrl;
   }
   return fallbackLogoUrl;
@@ -1357,6 +1788,7 @@ function createReceiptDraft(receipt, receiptLines) {
       label: line.label || "Fee",
       period: line.period || "-",
       baseAmount: Number(line.baseAmount || line.amount || 0),
+      concessionAmount: Number(line.concessionAmount || 0),
       lateFeeAmount: Number(line.lateFeeAmount || 0),
       amount: Number(line.amount || 0),
     };
@@ -1368,15 +1800,88 @@ function createReceiptDraft(receipt, receiptLines) {
     paymentMode: receipt.paymentMode || "Cash",
     chequeNo: receipt.chequeNo || receipt.checkNo || "",
     accountNo: receipt.accountNo || receipt.accountNumber || "",
-    discountAmount: String(receiptLines.reduce((sum, line) => sum + Number(line.concessionAmount || 0), 0)),
+    discountAmount: String(
+      receiptLines.reduce(
+        (sum, line) => sum + Number(line.concessionAmount || 0),
+        0
+      )
+    ),
     includeLateFees: false,
     note: mergeReceiptNotes(receipt, receiptLines),
     lines,
   };
 }
 
+function createReceiptDefaultBlocks(draft) {
+  const lines = draft.lines || [];
+
+  const totalBase = lines.reduce(
+    (sum, line) => sum + Number(line.baseAmount || 0),
+    0
+  );
+  const totalLate = lines.reduce(
+    (sum, line) => sum + Number(line.lateFeeAmount || 0),
+    0
+  );
+  const totalPaid = lines.reduce(
+    (sum, line) => sum + Number(line.amount || 0),
+    0
+  );
+  const totalDiscount = Number(draft.discountAmount || 0);
+
+  return [
+    {
+      id: `summary-${Date.now()}-1`,
+      type: "table",
+      columns: ["Fee Name", "Amount", "Discount", "Paid"],
+      rows: [
+        ...lines.map((line, index) => ({
+          id: `line-${line.id || index}`,
+          cells: [
+            `${line.label}${line.period && line.period !== "-" ? ` ${line.period}` : ""}`,
+            formatCurrency(line.baseAmount),
+            formatCurrency(line.concessionAmount || 0),
+            formatCurrency(line.amount),
+          ],
+        })),
+        totalLate
+          ? {
+              id: "total-late-fee",
+              cells: ["Total Fine", "", "", formatCurrency(totalLate)],
+            }
+          : null,
+        totalDiscount
+          ? {
+              id: "total-discount",
+              cells: [
+                "Total Discount",
+                "",
+                formatCurrency(totalDiscount),
+                formatCurrency(0),
+              ],
+            }
+          : null,
+        {
+          id: "total-paid",
+          cells: ["Total Paid", "", "", formatCurrency(totalPaid)],
+        },
+      ].filter(Boolean),
+    },
+    draft.note
+      ? {
+          id: `note-${Date.now()}-1`,
+          type: "text",
+          text: draft.note,
+        }
+      : null,
+  ].filter(Boolean);
+}
+
 function getReceiptLineFeeAmount(line, includeLateFees) {
-  return Number(line.baseAmount || 0) + (includeLateFees ? Number(line.lateFeeAmount || 0) : 0);
+  return (
+    Number(line.baseAmount || 0) +
+    (includeLateFees ? Number(line.lateFeeAmount || 0) : 0)
+  );
 }
 
 function getReceiptLinePaidAmount(line, includeLateFees) {
@@ -1405,25 +1910,33 @@ function parseDateInput(value) {
 }
 
 function getSchoolInitials(schoolName) {
-  return String(schoolName || "School")
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((word) => word[0]?.toUpperCase() || "")
-    .join("") || "S";
+  return (
+    String(schoolName || "School")
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((word) => word[0]?.toUpperCase() || "")
+      .join("") || "S"
+  );
 }
 
 function buildReceiptFromLedger(row, ledgerRows) {
   const receiptDate = toDateKey(row.paidDate);
-  const matchingRows = ledgerRows.filter((item) =>
-    item.status === "Paid" &&
-    item.feeId === row.feeId &&
-    item.label === row.label &&
-    (!row.receiptNo || item.receiptNo === row.receiptNo) &&
-    toDateKey(item.paidDate) === receiptDate
+  const matchingRows = ledgerRows.filter(
+    (item) =>
+      item.status === "Paid" &&
+      item.feeId === row.feeId &&
+      item.label === row.label &&
+      (!row.receiptNo || item.receiptNo === row.receiptNo) &&
+      toDateKey(item.paidDate) === receiptDate
   );
-  const lines = sortReceiptLines(matchingRows.length ? matchingRows : [row]);
-  const paidAmount = lines.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const lines = sortReceiptLines(
+    matchingRows.length ? matchingRows : [row]
+  );
+  const paidAmount = lines.reduce(
+    (sum, item) => sum + Number(item.amount || 0),
+    0
+  );
 
   return {
     ...row,
@@ -1434,19 +1947,31 @@ function buildReceiptFromLedger(row, ledgerRows) {
 }
 
 function sortReceiptLines(lines) {
-  return [...lines].sort((a, b) => getMonthPosition(a.period) - getMonthPosition(b.period));
+  return [...lines].sort(
+    (a, b) => getMonthPosition(a.period) - getMonthPosition(b.period)
+  );
 }
 
 function getReceiptPeriodRange(lines, academicYear) {
-  const tuitionLines = lines.filter((line) => getMonthPosition(line.period) >= 0);
+  const tuitionLines = lines.filter(
+    (line) => getMonthPosition(line.period) >= 0
+  );
   if (!tuitionLines.length) {
-    return lines.map((line) => line.period).filter(Boolean).join(", ") || "-";
+    return (
+      lines.map((line) => line.period).filter(Boolean).join(", ") ||
+      "-"
+    );
   }
 
   const sorted = sortReceiptLines(tuitionLines);
   const firstRange = getMonthDateRange(sorted[0].period, academicYear);
-  const lastRange = getMonthDateRange(sorted[sorted.length - 1].period, academicYear);
-  return `${formatReceiptDate(firstRange.from)} to ${formatReceiptDate(lastRange.to)}`;
+  const lastRange = getMonthDateRange(
+    sorted[sorted.length - 1].period,
+    academicYear
+  );
+  return `${formatReceiptDate(firstRange.from)} to ${formatReceiptDate(
+    lastRange.to
+  )}`;
 }
 
 function getMonthDateRange(monthName, academicYear) {
@@ -1484,13 +2009,66 @@ function formatReceiptDate(date) {
   });
 }
 
-function LateFeeSettings({ canManageFees, lateFeeSetting, onChange, onSubmit, tuitionItem }) {
+
+
+
+
+function useReceiptSchoolBranding(className = "") {
+  const [branding, setBranding] = useState({
+    logoUrl: "",
+    schoolName: "School",
+  });
+
+  useEffect(() => {
+    let active = true;
+    erpAPI
+      .list("schoolSettings")
+      .then((res) => {
+        const settings = res.data?.[0]?.payload || {};
+        const nextName = getSchoolNameForClass(settings, className);
+        const settingsLogo = String(settings.logoUrl || "").trim();
+        const nextLogo = getReceiptLogoUrl(
+          nextName,
+          className,
+          settingsLogo
+        );
+        if (active) {
+          setBranding({
+            logoUrl: nextLogo,
+            schoolName: nextName || "School",
+          });
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [className]);
+
+  return branding;
+}
+
+
+
+function LateFeeSettings({
+  canManageFees,
+  lateFeeSetting,
+  onChange,
+  onSubmit,
+  tuitionItem,
+}) {
   return (
     <form className="fee-late-settings" onSubmit={onSubmit}>
       <div>
         <span className="eyebrow">Late Fee</span>
-        <strong>Rs. 10 per day from 10th to 30th of every month</strong>
-        <small>Current late fee: Rs. {tuitionItem?.lateFeeAmount || 10} per day, capped on the 30th.</small>
+        <strong>
+          Rs. 10 per day from 10th to 30th of every month
+        </strong>
+        <small>
+          Current late fee: Rs. {tuitionItem?.lateFeeAmount || 10} per
+          day, capped on the 30th.
+        </small>
       </div>
       {canManageFees ? (
         <>
@@ -1503,10 +2081,14 @@ function LateFeeSettings({ canManageFees, lateFeeSetting, onChange, onSubmit, tu
               onChange={(event) => onChange(event.target.value)}
             />
           </label>
-          <button className="primary-button" type="submit">Save Late Fee</button>
+          <button className="primary-button" type="submit">
+            Save Late Fee
+          </button>
         </>
       ) : (
-        <span className="fee-status pending">Applied 10th-30th</span>
+        <span className="fee-status pending">
+          Applied 10th-30th
+        </span>
       )}
     </form>
   );
@@ -1517,13 +2099,23 @@ function PaymentModeSelector({ mode, onChange }) {
     <div className="fee-payment-modes">
       {paymentModes.map((item) => (
         <button
-          className={mode === item.value ? "fee-mode-card active" : "fee-mode-card"}
+          className={
+            mode === item.value
+              ? "fee-mode-card active"
+              : "fee-mode-card"
+          }
           key={item.value}
           type="button"
           onClick={() => onChange(item.value)}
         >
           <strong>{item.label}</strong>
-          <span>{item.value === "monthly" ? "1 month" : item.value === "quarterly" ? "3 months" : "Full year"}</span>
+          <span>
+            {item.value === "monthly"
+              ? "1 month"
+              : item.value === "quarterly"
+              ? "3 months"
+              : "Full year"}
+          </span>
         </button>
       ))}
     </div>
@@ -1560,47 +2152,101 @@ function PaymentSchedule({
           <article className="fee-schedule-card" key={group.key}>
             <div>
               <strong>{group.label}</strong>
-              <span>{group.months.map((month) => month.name).join(", ")}</span>
+              <span>
+                {group.months.map((month) => month.name).join(", ")}
+              </span>
             </div>
             <div className="fee-schedule-amount">
-              <strong>{formatCurrency(group.balanceAmount)}</strong>
-              <span className={`fee-status ${group.status.toLowerCase()}`}>
-                {group.status}{group.lateFeeAmount ? ` - Late Rs. ${group.lateFeeAmount}` : ""}
+              <strong>
+                {formatCurrency(group.balanceAmount)}
+              </strong>
+              <span
+                className={`fee-status ${group.status.toLowerCase()}`}
+              >
+                {group.status}
+                {group.lateFeeAmount
+                  ? ` - Late Rs. ${group.lateFeeAmount}`
+                  : ""}
               </span>
-              <small className={group.dueAmount > 0 ? "fee-schedule-due active" : "fee-schedule-due"}>
+              <small
+                className={
+                  group.dueAmount > 0
+                    ? "fee-schedule-due active"
+                    : "fee-schedule-due"
+                }
+              >
                 Due now: {formatCurrency(group.dueAmount)}
               </small>
             </div>
             {canPay ? (
-              <button className={group.status === "Paid" ? "secondary-button" : "primary-button"} type="button" onClick={() => onPay(group)}>
-                {group.status === "Paid" ? "Mark Pending" : "Pay"}
+              <button
+                className={
+                  group.status === "Paid"
+                    ? "secondary-button"
+                    : "primary-button"
+                }
+                type="button"
+                onClick={() => onPay(group)}
+              >
+                {group.status === "Paid"
+                  ? "Mark Pending"
+                  : "Pay"}
               </button>
             ) : (
-              <span className={`fee-status ${group.status.toLowerCase()}`}>{group.status}</span>
+              <span
+                className={`fee-status ${group.status.toLowerCase()}`}
+              >
+                {group.status}
+              </span>
             )}
 
             {isActive && (
               <div className="fee-date-popover">
                 <label>
                   <span>Payment date</span>
-                  <input type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} />
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(event) =>
+                      setSelectedDate(event.target.value)
+                    }
+                  />
                 </label>
                 <label>
                   <span>Payment medium</span>
-                  <select value={paymentMedium} onChange={(event) => setPaymentMedium(event.target.value)}>
+                  <select
+                    value={paymentMedium}
+                    onChange={(event) =>
+                      setPaymentMedium(event.target.value)
+                    }
+                  >
                     {paymentMethodOptions.map((method) => (
-                      <option key={method} value={method}>{method}</option>
+                      <option key={method} value={method}>
+                        {method}
+                      </option>
                     ))}
                   </select>
                 </label>
                 <div className="fee-payment-meta-grid">
                   <label>
                     <span>Cheque No.</span>
-                    <input value={chequeNo} onChange={(event) => setChequeNo(event.target.value)} placeholder="Optional" />
+                    <input
+                      value={chequeNo}
+                      onChange={(event) =>
+                        setChequeNo(event.target.value)
+                      }
+                      placeholder="Optional"
+                    />
                   </label>
                   <label>
                     <span>Account No.</span>
-                    <input value={accountNo} onChange={(event) => setAccountNo(event.target.value)} placeholder="Optional" />
+                    <input
+                      value={accountNo}
+                      onChange={(event) =>
+                        setAccountNo(event.target.value)
+                      }
+                      placeholder="Optional"
+                    />
                   </label>
                 </div>
                 {group.lateFeeAmount > 0 && (
@@ -1608,17 +2254,37 @@ function PaymentSchedule({
                     <input
                       type="checkbox"
                       checked={Boolean(includeLateFees)}
-                      onChange={(event) => setIncludeLateFees(event.target.checked)}
+                      onChange={(event) =>
+                        setIncludeLateFees(event.target.checked)
+                      }
                     />
-                    <span>Include late fees ({formatCurrency(group.lateFeeAmount)})</span>
+                    <span>
+                      Include late fees (
+                      {formatCurrency(group.lateFeeAmount)})
+                    </span>
                   </label>
                 )}
                 <strong className="fee-payment-total">
-                  Receiving: {formatCurrency(getGroupBalanceAmount(group, includeLateFees))}
+                  Receiving:{" "}
+                  {formatCurrency(
+                    getGroupBalanceAmount(group, includeLateFees)
+                  )}
                 </strong>
                 <div>
-                  <button className="secondary-button" type="button" onClick={onCancel}>Cancel</button>
-                  <button className="primary-button" type="button" onClick={onConfirm}>Save</button>
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={onCancel}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="primary-button"
+                    type="button"
+                    onClick={onConfirm}
+                  >
+                    Save
+                  </button>
                 </div>
               </div>
             )}
@@ -1629,11 +2295,21 @@ function PaymentSchedule({
   );
 }
 
-function getPaymentModeDueSummary(tuitionItem, otherItems, mode, academicYear) {
-  const tuitionDue = getPaymentGroups(tuitionItem, mode, academicYear)
-    .reduce((sum, group) => sum + Number(group.dueAmount || 0), 0);
-  const otherDue = (otherItems || [])
-    .reduce((sum, item) => sum + getEntryDueAmount(item, academicYear), 0);
+function getPaymentModeDueSummary(
+  tuitionItem,
+  otherItems,
+  mode,
+  academicYear
+) {
+  const tuitionDue = getPaymentGroups(
+    tuitionItem,
+    mode,
+    academicYear
+  ).reduce((sum, group) => sum + Number(group.dueAmount || 0), 0);
+  const otherDue = (otherItems || []).reduce(
+    (sum, item) => sum + getEntryDueAmount(item, academicYear),
+    0
+  );
 
   return {
     amount: tuitionDue + otherDue,
@@ -1649,9 +2325,17 @@ function getPaymentModeLabel(mode) {
 }
 
 function createGroupedReceiptNo(plan, group) {
-  const year = String(plan?.academicYear || "YEAR").replace(/\D/g, "").slice(0, 8);
-  const admission = String(plan?.admissionNo || plan?.student || "STD").replace(/\W/g, "").slice(-6).toUpperCase();
-  const code = String(group?.key || group?.label || "FEE").replace(/\W/g, "").slice(0, 8).toUpperCase();
+  const year = String(plan?.academicYear || "YEAR")
+    .replace(/\D/g, "")
+    .slice(0, 8);
+  const admission = String(plan?.admissionNo || plan?.student || "STD")
+    .replace(/\W/g, "")
+    .slice(-6)
+    .toUpperCase();
+  const code = String(group?.key || group?.label || "FEE")
+    .replace(/\W/g, "")
+    .slice(0, 8)
+    .toUpperCase();
   const stamp = Date.now().toString(36).toUpperCase().slice(-5);
   return `R-${year}-${admission}-${code}-${stamp}`;
 }
@@ -1665,7 +2349,15 @@ function getPaymentModeDueDetail(mode) {
 function getPaymentGroups(tuitionItem, mode, academicYear) {
   const months = tuitionItem?.months || [];
   if (mode === "yearly") {
-    return [toPaymentGroup("yearly", "Yearly Payment", months, academicYear, mode)];
+    return [
+      toPaymentGroup(
+        "yearly",
+        "Yearly Payment",
+        months,
+        academicYear,
+        mode
+      ),
+    ];
   }
 
   if (mode === "quarterly") {
@@ -1673,28 +2365,64 @@ function getPaymentGroups(tuitionItem, mode, academicYear) {
       toPaymentGroup(
         `quarter-${index + 1}`,
         `Quarter ${index + 1}`,
-        names.map((name) => months.find((month) => month.name === name)).filter(Boolean),
+        names
+          .map((name) =>
+            months.find((month) => month.name === name)
+          )
+          .filter(Boolean),
         academicYear,
         mode
       )
     );
   }
 
-  return months.map((month) => toPaymentGroup(month.name, month.name, [month], academicYear, mode));
+  return months.map((month) =>
+    toPaymentGroup(
+      month.name,
+      month.name,
+      [month],
+      academicYear,
+      mode
+    )
+  );
 }
 
 function toPaymentGroup(key, label, months, academicYear, mode) {
-  const lateFeeAmount = months.reduce((sum, month) => sum + getMonthLateFeeAmount(month), 0);
-  const payableAmount = months.reduce((sum, month) => sum + getMonthPayableAmount(month), 0);
-  const basePayableAmount = months.reduce((sum, month) => sum + getMonthPayableAmount(month, false), 0);
+  const lateFeeAmount = months.reduce(
+    (sum, month) => sum + getMonthLateFeeAmount(month),
+    0
+  );
+  const payableAmount = months.reduce(
+    (sum, month) => sum + getMonthPayableAmount(month),
+    0
+  );
+  const basePayableAmount = months.reduce(
+    (sum, month) => sum + getMonthPayableAmount(month, false),
+    0
+  );
   const paidAmount = months.reduce(
-    (sum, month) => sum + getEntryPaidAmount(month, getMonthPayableAmount(month)),
+    (sum, month) =>
+      sum + getEntryPaidAmount(month, getMonthPayableAmount(month)),
     0
   );
   const balanceAmount = Math.max(0, payableAmount - paidAmount);
-  const baseBalanceAmount = Math.max(0, basePayableAmount - paidAmount);
-  const dueAmount = isPaymentGroupDueNow(months, academicYear, mode) ? balanceAmount : 0;
-  const status = months.length && balanceAmount <= 0 ? "Paid" : paidAmount > 0 ? "Partial" : "Pending";
+  const baseBalanceAmount = Math.max(
+    0,
+    basePayableAmount - paidAmount
+  );
+  const dueAmount = isPaymentGroupDueNow(
+    months,
+    academicYear,
+    mode
+  )
+    ? balanceAmount
+    : 0;
+  const status =
+    months.length && balanceAmount <= 0
+      ? "Paid"
+      : paidAmount > 0
+      ? "Partial"
+      : "Pending";
 
   return {
     key,
@@ -1721,7 +2449,9 @@ function isPaymentGroupDueNow(months, academicYear, mode) {
     return isFeeMonthDueNow(months[0].name, academicYear);
   }
 
-  return months.some((month) => isFeeMonthDueNow(month.name, academicYear));
+  return months.some((month) =>
+    isFeeMonthDueNow(month.name, academicYear)
+  );
 }
 
 function getMonthLateFeeAmount(month) {
@@ -1731,17 +2461,29 @@ function getMonthLateFeeAmount(month) {
 }
 
 function getMonthPayableAmount(month, includeLateFees = true) {
-  return Math.max(0, Number(month.amount || 0) - Number(month.concessionAmount || 0)) +
-    (includeLateFees ? getMonthLateFeeAmount(month) : 0);
+  return (
+    Math.max(
+      0,
+      Number(month.amount || 0) - Number(month.concessionAmount || 0)
+    ) + (includeLateFees ? getMonthLateFeeAmount(month) : 0)
+  );
 }
 
 function getOneTimePayableAmount(item, includeLateFees = true) {
-  return Math.max(0, Number(item?.amount || 0) - Number(item?.concessionAmount || 0)) +
-    (includeLateFees ? getOneTimeLateFeeAmount(item) : 0);
+  return (
+    Math.max(
+      0,
+      Number(item?.amount || 0) -
+        Number(item?.concessionAmount || 0)
+    ) + (includeLateFees ? getOneTimeLateFeeAmount(item) : 0)
+  );
 }
 
 function getEntryPaidAmount(entry, payableAmount) {
-  const paymentsTotal = (entry?.payments || []).reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+  const paymentsTotal = (entry?.payments || []).reduce(
+    (sum, payment) => sum + Number(payment.amount || 0),
+    0
+  );
   if (paymentsTotal > 0) return paymentsTotal;
   const storedPaid = Number(entry?.amountPaid || 0);
   if (storedPaid > 0) return storedPaid;
@@ -1753,7 +2495,10 @@ function getEntryBalanceAmount(entry, includeLateFees = true) {
   const payableAmount = entry.name
     ? getMonthPayableAmount(entry, includeLateFees)
     : getOneTimePayableAmount(entry, includeLateFees);
-  return Math.max(0, payableAmount - getEntryPaidAmount(entry, payableAmount));
+  return Math.max(
+    0,
+    payableAmount - getEntryPaidAmount(entry, payableAmount)
+  );
 }
 
 function getEntryDueAmount(entry, academicYear) {
@@ -1769,14 +2514,23 @@ function getOneTimeLateFeeAmount(item) {
 }
 
 function isEntryDueNow(entry, academicYear, asOf = new Date()) {
-  if (entry?.name) return isFeeMonthDueNow(entry.name, academicYear, asOf);
-  if (entry?.applicableMonth) return isFeeMonthDueNow(entry.applicableMonth, academicYear, asOf);
+  if (entry?.name)
+    return isFeeMonthDueNow(entry.name, academicYear, asOf);
+  if (entry?.applicableMonth)
+    return isFeeMonthDueNow(
+      entry.applicableMonth,
+      academicYear,
+      asOf
+    );
   return true;
 }
 
 function isFeeMonthDueNow(monthName, academicYear, asOf = new Date()) {
   if (getMonthPosition(monthName) < 0) return true;
-  return getMonthDateRange(monthName, academicYear).from <= normalizeDate(asOf);
+  return (
+    getMonthDateRange(monthName, academicYear).from <=
+    normalizeDate(asOf)
+  );
 }
 
 function normalizeDate(date) {
@@ -1808,12 +2562,16 @@ function getLateFeeTotal(tuitionItem, otherItems = []) {
     (sum, month) => sum + getMonthLateFeeAmount(month),
     0
   );
-  const otherLateFee = otherItems.reduce((sum, item) => sum + getOneTimeLateFeeAmount(item), 0);
+  const otherLateFee = otherItems.reduce(
+    (sum, item) => sum + getOneTimeLateFeeAmount(item),
+    0
+  );
   return tuitionLateFee + otherLateFee;
 }
 
 function SummaryCard({ detail, highlight, label, numericValue, value }) {
-  const displayValue = numericValue !== undefined ? formatCurrency(numericValue) : value;
+  const displayValue =
+    numericValue !== undefined ? formatCurrency(numericValue) : value;
 
   return (
     <div
@@ -1825,7 +2583,13 @@ function SummaryCard({ detail, highlight, label, numericValue, value }) {
         background: "#f9fafb",
       }}
     >
-      <div style={{ fontSize: "13px", color: "#6b7280", marginBottom: "4px" }}>
+      <div
+        style={{
+          fontSize: "13px",
+          color: "#6b7280",
+          marginBottom: "4px",
+        }}
+      >
         {label}
       </div>
       <div
@@ -1838,7 +2602,13 @@ function SummaryCard({ detail, highlight, label, numericValue, value }) {
         {displayValue}
       </div>
       {detail && (
-        <small style={{ color: "#64748b", display: "block", marginTop: "5px" }}>
+        <small
+          style={{
+            color: "#64748b",
+            display: "block",
+            marginTop: "5px",
+          }}
+        >
           {detail}
         </small>
       )}
@@ -1948,6 +2718,481 @@ function Select({ label, options, fullWidth, ...props }) {
         ))}
       </select>
     </label>
+  );
+}
+
+function ReceiptModal({ onClose, receipt, student }) {
+  const receiptClassName = student?.className || receipt.className || "";
+
+  const { logoUrl, schoolName } = useReceiptSchoolBranding(receiptClassName);
+
+  const receiptLines = useMemo(
+    () => (receipt.lines?.length ? receipt.lines : [receipt]),
+    [receipt]
+  );
+
+  const [printOrientation, setPrintOrientation] = useState("landscape");
+  const [draft] = useState(() => createReceiptDraft(receipt, receiptLines));
+  const receiptRef = useRef(null);
+  const paidDate = parseDateInput(draft.paidDate);
+  const receiptMobileNo =
+    student?.mobileNo ||
+    student?.mobile ||
+    receipt.mobileNo ||
+    receipt.mobile ||
+    "";
+  const [blocks, setBlocks] = useState(() =>
+    createReceiptDefaultBlocks(draft)
+  );
+
+  function addTextBlock() {
+    setBlocks((cur) => [
+      ...cur,
+      {
+        type: "text",
+        id: crypto.randomUUID?.() || String(Date.now()) + Math.random(),
+        text: "",
+      },
+    ]);
+  }
+
+  function addTableBlock() {
+    setBlocks((cur) => [
+      ...cur,
+      {
+        type: "table",
+        id: crypto.randomUUID?.() || String(Date.now()) + Math.random(),
+        columns: ["Particulars", "Amount"],
+        rows: [{ id: String(Date.now()), cells: ["", ""] }],
+      },
+    ]);
+  }
+
+  function updateBlock(blockId, updater) {
+    setBlocks((cur) => cur.map((b) => (b.id === blockId ? updater(b) : b)));
+  }
+
+  function removeBlock(blockId) {
+    setBlocks((cur) => cur.filter((b) => b.id !== blockId));
+  }
+
+  function handleDownloadReceipt() {
+    downloadReceiptHtml(receiptRef.current, {
+      filename: draft.receiptNo || "receipt",
+      orientation: printOrientation,
+    });
+  }
+
+  function renderBlocksForReceiptCopy() {
+    return (
+      <>
+        {blocks.map((block) => {
+          if (block.type === "text") {
+            return (
+              <section key={block.id} className="receipt-note-box">
+                <span>Note</span>
+                <p style={{ whiteSpace: "pre-wrap" }}>
+                  {block.text || " "}
+                </p>
+              </section>
+            );
+          }
+
+          if (block.type === "table") {
+            return (
+              <table key={block.id} className="receipt-lines">
+                <thead>
+                  <tr>
+                    {block.columns.map((c) => (
+                      <th key={c}>{c}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {block.rows.map((r) => (
+                    <tr key={r.id}>
+                      {r.cells.map((cell, idx) => (
+                        <td key={idx}>{cell || ""}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            );
+          }
+
+          return null;
+        })}
+
+        <footer className="receipt-footer">
+          <span>Amount received for the period shown above.</span>
+          <div className="receipt-signature">
+            <span>For {schoolName}</span>
+            <strong>Authorized Signatory</strong>
+          </div>
+        </footer>
+      </>
+    );
+  }
+
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true">
+      <div className="receipt-modal">
+        <div className="section-heading no-print">
+          <div>
+            <span className="eyebrow">Receipt</span>
+            <h3>{draft.receiptNo || "Receipt"}</h3>
+          </div>
+          <button className="icon-button" type="button" onClick={onClose}>
+            ×
+          </button>
+        </div>
+
+        {/* Editor for blocks */}
+        <div className="no-print" style={{ paddingBottom: 12 }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+              marginBottom: 10,
+            }}
+          >
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={addTextBlock}
+            >
+              + Add Text
+            </button>
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={addTableBlock}
+            >
+              + Add Table
+            </button>
+          </div>
+
+          {blocks.map((block) => (
+            <div
+              key={block.id}
+              style={{
+                border: "1px solid #e5e7eb",
+                borderRadius: 10,
+                padding: 12,
+                marginBottom: 10,
+                background: "#fff",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <strong>
+                  {block.type === "text" ? "Text Block" : "Table Block"}
+                </strong>
+                <button
+                  className="ghost-button"
+                  type="button"
+                  onClick={() => removeBlock(block.id)}
+                >
+                  Remove
+                </button>
+              </div>
+
+              {block.type === "text" && (
+                <label style={{ display: "block", marginTop: 8 }}>
+                  <span
+                    style={{
+                      display: "block",
+                      fontSize: 13,
+                      marginBottom: 6,
+                      color: "#6b7280",
+                    }}
+                  >
+                    Text
+                  </span>
+                  <textarea
+                    rows={3}
+                    value={block.text}
+                    onChange={(e) =>
+                      updateBlock(block.id, (b) => ({
+                        ...b,
+                        text: e.target.value,
+                      }))
+                    }
+                    style={{ width: "100%" }}
+                  />
+                </label>
+              )}
+
+              {block.type === "table" && (
+                <div style={{ marginTop: 8 }}>
+                  {block.rows.map((row, rowIdx) => (
+                    <div
+                      key={row.id}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 160px 40px",
+                        gap: 8,
+                        marginBottom: 8,
+                        alignItems: "center",
+                      }}
+                    >
+                      <input
+                        value={row.cells[0]}
+                        placeholder="Particulars"
+                        onChange={(e) =>
+                          updateBlock(block.id, (b) => {
+                            const rows = b.rows.map((rr, i) =>
+                              i === rowIdx
+                                ? {
+                                    ...rr,
+                                    cells: [e.target.value, rr.cells[1]],
+                                  }
+                                : rr
+                            );
+                            return { ...b, rows };
+                          })
+                        }
+                      />
+                      <input
+                        value={row.cells[1]}
+                        placeholder="Amount"
+                        onChange={(e) =>
+                          updateBlock(block.id, (b) => {
+                            const rows = b.rows.map((rr, i) =>
+                              i === rowIdx
+                                ? {
+                                    ...rr,
+                                    cells: [rr.cells[0], e.target.value],
+                                  }
+                                : rr
+                            );
+                            return { ...b, rows };
+                          })
+                        }
+                      />
+                      <button
+                        type="button"
+                        className="ghost-button"
+                        onClick={() =>
+                          updateBlock(block.id, (b) => ({
+                            ...b,
+                            rows: b.rows.filter((_, i) => i !== rowIdx),
+                          }))
+                        }
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={() =>
+                      updateBlock(block.id, (b) => ({
+                        ...b,
+                        rows: [
+                          ...b.rows,
+                          { id: String(Date.now()), cells: ["", ""] },
+                        ],
+                      }))
+                    }
+                  >
+                    + Add Row
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Printable A4 layout with two copies */}
+        <div
+          className={`receipt-a4-page ${printOrientation}`}
+          ref={receiptRef}
+        >
+          <div className="receipt-two-up">
+            {[
+              { label: "Student Copy", isStudent: true },
+              { label: "School Copy", isStudent: false },
+            ].map((copy) => (
+              <article key={copy.label} className="receipt-copy">
+                <article
+                  className={`receipt-print-area ${printOrientation}`}
+                >
+                  <div className="receipt-copy-head">
+                    <span>MOB. NO. {receiptMobileNo || "-"}</span>
+                    <strong>({copy.label.toUpperCase()})</strong>
+                  </div>
+                  <header className="receipt-header">
+                    <div className="receipt-school-brand">
+                      {logoUrl ? (
+                        <img src={logoUrl} alt={`${schoolName} logo`} />
+                      ) : (
+                        <div className="receipt-logo-fallback">
+                          {getSchoolInitials(schoolName)}
+                        </div>
+                      )}
+                      <div>
+                        <h2>{schoolName}</h2>
+                        <p className="receipt-school-description">
+                          {receiptSchoolDescription}
+                        </p>
+                      </div>
+                    </div>
+                  </header>
+                  <div className="receipt-title-pill">
+                    Fee Receipt {receipt.academicYear || ""}
+                  </div>
+
+                  <section className="receipt-info-grid">
+                    <div>
+                      <span>Receipt No.</span>
+                      <strong>{draft.receiptNo || "-"}</strong>
+                    </div>
+                    <div>
+                      <span>Date</span>
+                      <strong>
+                        {paidDate.toLocaleDateString("en-IN")}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Student</span>
+                      <strong>
+                        {student?.name ||
+                          receipt.studentName ||
+                          "-"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Class</span>
+                      <strong>
+                        {student?.className ||
+                          receipt.className ||
+                          "-"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Father Name</span>
+                      <strong>
+                        {student?.fatherName ||
+                          receipt.fatherName ||
+                          "-"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Section</span>
+                      <strong>
+                        {student?.section ||
+                          receipt.section ||
+                          "-"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Admission No</span>
+                      <strong>
+                        {student?.admissionNo ||
+                          receipt.admissionNo ||
+                          "-"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Academic Year</span>
+                      <strong>{receipt.academicYear || "-"}</strong>
+                    </div>
+                    <div>
+                      <span>Paid For</span>
+                      <strong>
+                        {receipt.periodRange ||
+                          receipt.period ||
+                          "-"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Payment Medium</span>
+                      <strong>{draft.paymentMode || "Cash"}</strong>
+                    </div>
+                    <div>
+                      <span>Cheque No.</span>
+                      <strong>{draft.chequeNo || "-"}</strong>
+                    </div>
+                    <div>
+                      <span>Account No.</span>
+                      <strong>{draft.accountNo || "-"}</strong>
+                    </div>
+                    <div>
+                      <span>Receipt Type</span>
+                      <strong>{copy.label}</strong>
+                    </div>
+                  </section>
+
+                  {renderBlocksForReceiptCopy()}
+                </article>
+              </article>
+            ))}
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="receipt-actions no-print">
+          <div
+            className="receipt-orientation-toggle"
+            role="group"
+            aria-label="Print layout"
+          >
+            <span>Print layout</span>
+            <button
+              className={
+                printOrientation === "portrait" ? "active" : ""
+              }
+              type="button"
+              onClick={() => setPrintOrientation("portrait")}
+            >
+              Portrait
+            </button>
+            <button
+              className={
+                printOrientation === "landscape" ? "active" : ""
+              }
+              type="button"
+              onClick={() => setPrintOrientation("landscape")}
+            >
+              Landscape
+            </button>
+          </div>
+
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={handleDownloadReceipt}
+          >
+            Download Receipt
+          </button>
+
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={onClose}
+          >
+            Close
+          </button>
+          <button
+            className="primary-button"
+            type="button"
+            onClick={() => printReceiptOnly(printOrientation)}
+          >
+            Print Receipt
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
