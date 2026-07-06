@@ -15,8 +15,8 @@ function TransportVehicleDetailPage() {
   const { vehicleId } = useParams();
   const navigate = useNavigate();
   const currentUser = getStoredUser();
-  const canManage = canUseRole(["superadmin", "admin", "staff"], currentUser);
-  const canCollect = canUseRole(["superadmin", "accountant"], currentUser);
+  const canManage = canUseRole(["transport.manage"], currentUser);
+  const canCollect = canUseRole(["fees.manage"], currentUser);
 
   const [academicYear, setAcademicYear] = useState(getCurrentAcademicYear());
   const [vehicleDetail, setVehicleDetail] = useState(null);

@@ -4,8 +4,10 @@ const auth = require("../middleware/auth");
 const { authorize } = require("../middleware/auth");
 
 const router = express.Router();
-const CLASS_VIEW_ROLES = ["admin", "teacher"];
-const CLASS_MANAGE_ROLES = ["teacher"];
+const CLASS_VIEW_ROLES = ["classes.view"];
+const CLASS_CREATE_ROLES = ["classes.create", "classes.manage"];
+const CLASS_EDIT_ROLES = ["classes.edit", "classes.manage"];
+const CLASS_DELETE_ROLES = ["classes.delete", "classes.manage"];
 
 router.use(auth);
 
@@ -33,7 +35,7 @@ router.get("/:id", authorize(...CLASS_VIEW_ROLES), async (req, res) => {
 });
 
 // POST /api/classes - create class
-router.post("/", authorize(...CLASS_MANAGE_ROLES), async (req, res) => {
+router.post("/", authorize(...CLASS_CREATE_ROLES), async (req, res) => {
   try {
     const data = req.body;
     if (!data.name) {
@@ -57,7 +59,7 @@ router.post("/", authorize(...CLASS_MANAGE_ROLES), async (req, res) => {
 });
 
 // PUT /api/classes/:id - update class
-router.put("/:id", authorize(...CLASS_MANAGE_ROLES), async (req, res) => {
+router.put("/:id", authorize(...CLASS_EDIT_ROLES), async (req, res) => {
   try {
     const data = req.body;
 
@@ -88,7 +90,7 @@ router.put("/:id", authorize(...CLASS_MANAGE_ROLES), async (req, res) => {
 });
 
 // DELETE /api/classes/:id - delete class
-router.delete("/:id", authorize("superadmin"), async (req, res) => {
+router.delete("/:id", authorize(...CLASS_DELETE_ROLES), async (req, res) => {
   try {
     const cls = await Class.findByIdAndDelete(req.params.id);
     if (!cls) return res.status(404).json({ error: "Class not found" });

@@ -7,8 +7,8 @@ const GLOBAL_CLASS_NAME = "__GLOBAL__";
 
 function NoticesPage() {
   const currentUser = getStoredUser();
-  const canPublishGlobal = canUseRole(["superadmin", "admin"], currentUser);
-  const canPublishClass = canUseRole(["superadmin", "admin", "teacher"], currentUser);
+  const canPublishGlobal = canUseRole(["notices.manage"], currentUser);
+  const canPublishClass = canUseRole(["notices.create", "notices.manage"], currentUser);
   const [classes, setClasses] = useState([]);
   const [notices, setNotices] = useState([]);
   const [message, setMessage] = useState("");

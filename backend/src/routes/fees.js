@@ -11,8 +11,10 @@ const {
 } = require("../utils/accessScope");
 
 const router = express.Router();
-const FEE_VIEW_ROLES = ["accountant", "parent", "student"];
-const FEE_MANAGE_ROLES = ["accountant"];
+const FEE_VIEW_ROLES = ["fees.view"];
+const FEE_MANAGE_ROLES = ["fees.edit", "fees.manage"];
+const FEE_CREATE_ROLES = ["fees.create", "fees.manage"];
+const FEE_DELETE_ROLES = ["fees.delete", "fees.manage"];
 
 router.use(auth);
 
@@ -396,7 +398,7 @@ router.get("/student/:studentId", authorize(...FEE_VIEW_ROLES), async (req, res)
 });
 
 // Create tuition plan (month-wise) for a student+year
-router.post("/create-tuition", authorize(...FEE_MANAGE_ROLES), async (req, res) => {
+router.post("/create-tuition", authorize(...FEE_CREATE_ROLES), async (req, res) => {
   try {
     const { studentId, academicYear, monthlyAmount, lateFeeAmount = DEFAULT_LATE_FEE_PER_DAY } = req.body;
 
@@ -522,7 +524,7 @@ router.patch("/:feeId/tuition-late-fee", authorize(...FEE_MANAGE_ROLES), async (
 });
 
 // Add other fee (exam/activity/other)
-router.post("/add-item", authorize(...FEE_MANAGE_ROLES), async (req, res) => {
+router.post("/add-item", authorize(...FEE_CREATE_ROLES), async (req, res) => {
   try {
     const {
       studentId,
@@ -764,7 +766,7 @@ router.patch("/:feeId/item-payment", authorize(...FEE_MANAGE_ROLES), async (req,
 });
 
 // Delete entire plan (reset)
-router.delete("/:feeId", authorize("superadmin"), async (req, res) => {
+router.delete("/:feeId", authorize(...FEE_DELETE_ROLES), async (req, res) => {
   try {
     await Fee.findByIdAndDelete(req.params.feeId);
     res.json({ success: true });

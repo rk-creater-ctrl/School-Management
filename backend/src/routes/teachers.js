@@ -137,7 +137,7 @@ function profileResponse(profile, user) {
   };
 }
 
-router.get("/me", auth, authorize("teacher"), async (req, res) => {
+router.get("/me", auth, authorize("teachers.view"), async (req, res) => {
   try {
     const profile = await getOrCreateProfile(req.user);
     res.json(profileResponse(profile, req.user));
@@ -147,7 +147,7 @@ router.get("/me", auth, authorize("teacher"), async (req, res) => {
   }
 });
 
-router.put("/me", auth, authorize("teacher"), async (req, res) => {
+router.put("/me", auth, authorize("teachers.edit", "teachers.manage"), async (req, res) => {
   try {
     const payload = {
       employeeCode: cleanString(req.body.employeeCode),
@@ -187,7 +187,7 @@ router.put("/me", auth, authorize("teacher"), async (req, res) => {
   }
 });
 
-router.get("/students", auth, authorize("teacher"), async (req, res) => {
+router.get("/students", auth, authorize("teachers.view"), async (req, res) => {
   try {
     const className = cleanString(req.query.className);
     if (!className) {
@@ -206,7 +206,7 @@ router.get("/students", auth, authorize("teacher"), async (req, res) => {
   }
 });
 
-router.get("/work-records", auth, authorize("teacher"), async (req, res) => {
+router.get("/work-records", auth, authorize("teachers.view"), async (req, res) => {
   try {
     const filter = { teacherId: req.user._id };
     if (req.query.className) filter.className = cleanString(req.query.className);
@@ -228,7 +228,7 @@ router.get("/work-records", auth, authorize("teacher"), async (req, res) => {
   }
 });
 
-router.put("/work-records", auth, authorize("teacher"), async (req, res) => {
+router.put("/work-records", auth, authorize("teachers.edit", "teachers.manage"), async (req, res) => {
   try {
     const className = cleanString(req.body.className);
     const subject = cleanString(req.body.subject);
@@ -317,7 +317,7 @@ router.put("/work-records", auth, authorize("teacher"), async (req, res) => {
   }
 });
 
-router.patch("/work-records/:id/review", auth, authorize("superadmin", "admin"), async (req, res) => {
+router.patch("/work-records/:id/review", auth, authorize("teachers.approve", "teachers.manage"), async (req, res) => {
   try {
     const reviewStatus = cleanEnum(
       req.body.reviewStatus,
@@ -352,7 +352,7 @@ router.patch("/work-records/:id/review", auth, authorize("superadmin", "admin"),
   }
 });
 
-router.get("/announcements", auth, authorize("teacher"), async (req, res) => {
+router.get("/announcements", auth, authorize("teachers.view"), async (req, res) => {
   try {
     const now = new Date();
     const announcements = await TeacherAnnouncement.find({
@@ -388,7 +388,7 @@ router.get("/announcements", auth, authorize("teacher"), async (req, res) => {
   }
 });
 
-router.post("/announcements", auth, authorize("superadmin", "admin"), async (req, res) => {
+router.post("/announcements", auth, authorize("teachers.manage"), async (req, res) => {
   try {
     if (!req.body.title || !req.body.message) {
       return res.status(400).json({ error: "title and message are required" });
@@ -411,7 +411,7 @@ router.post("/announcements", auth, authorize("superadmin", "admin"), async (req
   }
 });
 
-router.patch("/announcements/:id/read", auth, authorize("teacher"), async (req, res) => {
+router.patch("/announcements/:id/read", auth, authorize("teachers.view"), async (req, res) => {
   try {
     const announcement = await TeacherAnnouncement.findByIdAndUpdate(
       req.params.id,

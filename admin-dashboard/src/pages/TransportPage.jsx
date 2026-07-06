@@ -26,7 +26,7 @@ const statusOptions = ["Active", "Maintenance", "Inactive"];
 
 function TransportPage() {
   const currentUser = getStoredUser();
-  const canManage = canUseRole(["superadmin", "admin", "staff"], currentUser);
+  const canManage = canUseRole(["transport.manage"], currentUser);
   const navigate = useNavigate();
 
   const [academicYear, setAcademicYear] = useState(getCurrentAcademicYear());

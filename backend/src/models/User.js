@@ -1,5 +1,6 @@
 const bcrypt = require("bcryptjs");
 const { createModel, hashUserPasswordIfNeeded } = require("../lib/supabaseModel");
+const { normalizePermissionMode, normalizePermissions } = require("../utils/permissionCatalog");
 
 module.exports = createModel("users", {
   beforeSave: async (data) => {
@@ -14,9 +15,8 @@ module.exports = createModel("users", {
     if (data.profilePhotoUrl) data.profilePhotoUrl = String(data.profilePhotoUrl).trim();
     if (data.campus) data.campus = String(data.campus).trim();
     if (data.academicYear) data.academicYear = String(data.academicYear).trim();
-    data.permissions = Array.isArray(data.permissions)
-      ? [...new Set(data.permissions.map((item) => String(item || "").toLowerCase().trim()).filter((item) => item && item !== "superadmin"))]
-      : [];
+    data.permissionMode = normalizePermissionMode(data.permissionMode);
+    data.permissions = normalizePermissions(data.permissions);
     await hashUserPasswordIfNeeded(data);
   },
   methods: {

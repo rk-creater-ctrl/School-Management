@@ -3,6 +3,7 @@ const PasswordChangeRequest = require('../models/PasswordChangeRequest');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { hasAnyRole } = require('../utils/accessScope');
+const { normalizePermissionMode, normalizePermissions } = require('../utils/permissionCatalog');
 
 function signToken(user) {
   return jwt.sign(
@@ -27,6 +28,7 @@ function publicUser(user) {
     studentAdmissionNo: user.studentAdmissionNo,
     linkedStudentAdmissionNo: user.linkedStudentAdmissionNo,
     permissions: normalizePermissions(user.permissions),
+    permissionMode: normalizePermissionMode(user.permissionMode),
     profilePhotoUrl: user.profilePhotoUrl || "",
     campus: user.campus || "",
     academicYear: user.academicYear || "",
@@ -36,12 +38,6 @@ function publicUser(user) {
 
 function cleanString(value) {
   return String(value || '').trim();
-}
-
-function normalizePermissions(permissions) {
-  return Array.isArray(permissions)
-    ? [...new Set(permissions.map((item) => String(item || '').toLowerCase().trim()).filter((item) => item && item !== 'superadmin'))]
-    : [];
 }
 
 function passwordRequestResponse(request, user, reviewer) {
@@ -240,6 +236,7 @@ exports.createUser = async (req, res) => {
       studentAdmissionNo,
       linkedStudentAdmissionNo,
       permissions,
+      permissionMode,
     } = req.body;
     const role = requestedRole || 'student';
 
@@ -267,6 +264,7 @@ exports.createUser = async (req, res) => {
       studentAdmissionNo,
       linkedStudentAdmissionNo,
       permissions: req.user.role === 'superadmin' ? permissions : [],
+      permissionMode: req.user.role === 'superadmin' ? permissionMode : 'role',
     });
     await user.save();
     res.status(201).json(publicUser(user));
@@ -300,6 +298,7 @@ exports.updateUser = async (req, res) => {
       'studentAdmissionNo',
       'linkedStudentAdmissionNo',
       'permissions',
+      'permissionMode',
       'profilePhotoUrl',
       'campus',
       'academicYear',

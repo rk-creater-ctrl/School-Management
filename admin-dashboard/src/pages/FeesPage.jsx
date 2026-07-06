@@ -17,7 +17,7 @@ function FeesPage() {
   const [selectedClass, setSelectedClass] = useState("all");
   const [activeYear, setActiveYear] = useState(getCurrentAcademicYear());
   const currentUser = getStoredUser();
-  const canOpenCollections = canUseRole(["superadmin", "accountant"], currentUser);
+  const canOpenCollections = canUseRole(["fees.manage"], currentUser);
 
   useEffect(() => {
     loadData();

@@ -10,7 +10,7 @@ const {
 } = require("../utils/accessScope");
 
 const router = express.Router();
-const STUDENT_READ_ROLES = ["admin", "teacher", "accountant", "staff", "student", "parent"];
+const STUDENT_READ_ROLES = ["students.view"];
 const STUDENT_ALL_ACCESS_ROLES = ["admin", "teacher", "accountant", "staff"];
 
 router.use(auth);
@@ -55,7 +55,7 @@ router.get("/:id", authorize(...STUDENT_READ_ROLES), async (req, res) => {
 });
 
 // POST /api/students - create
-router.post("/", authorize("superadmin"), async (req, res) => {
+router.post("/", authorize("students.create", "students.manage"), async (req, res) => {
   try {
     console.log("POST /api/students body:", req.body);
 
@@ -93,7 +93,7 @@ router.post("/", authorize("superadmin"), async (req, res) => {
 });
 
 // PUT /api/students/:id - update
-router.put("/:id", authorize("superadmin"), async (req, res) => {
+router.put("/:id", authorize("students.edit", "students.manage"), async (req, res) => {
   try {
     console.log("PUT /api/students/:id body:", req.body);
 
@@ -134,7 +134,7 @@ router.put("/:id", authorize("superadmin"), async (req, res) => {
 });
 
 // DELETE /api/students/:id - delete
-router.delete("/:id", authorize("superadmin"), async (req, res) => {
+router.delete("/:id", authorize("students.delete", "students.manage"), async (req, res) => {
   try {
     const student = await Student.findByIdAndDelete(req.params.id);
     if (!student) return res.status(404).json({ error: "Student not found" });

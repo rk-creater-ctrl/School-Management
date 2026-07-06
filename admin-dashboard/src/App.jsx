@@ -60,29 +60,29 @@ function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<RequireAuth><Layout /></RequireAuth>}>
         <Route index element={<RequireRole roles={allRoles}><DashboardPage /></RequireRole>} />
-        <Route path="/students" element={<RequireRole roles={["superadmin", "admin", "teacher"]}><StudentsPage /></RequireRole>} />
-        <Route path="/students/new" element={<RequireRole roles={["superadmin"]}><StudentFormPage /></RequireRole>} />
-        <Route path="/students/:id/edit" element={<RequireRole roles={["superadmin"]}><StudentFormPage /></RequireRole>} />
-        <Route path="/students/:id" element={<RequireRole roles={["superadmin", "admin", "teacher", "student", "parent"]}><StudentProfilePage /></RequireRole>} />
-        <Route path="/classes" element={<RequireRole roles={["superadmin", "admin", "teacher"]}><ClassesPage /></RequireRole>} />
-        <Route path="/classes/new" element={<RequireRole roles={["superadmin", "teacher"]}><ClassFormPage /></RequireRole>} />
-        <Route path="/classes/:id/edit" element={<RequireRole roles={["superadmin", "teacher"]}><ClassFormPage /></RequireRole>} />
-        <Route path="/classes/:id" element={<RequireRole roles={["superadmin", "admin", "teacher"]}><ClassDetailPage /></RequireRole>} />
-        <Route path="/teacher/*" element={<RequireRole roles={["teacher"]}><TeacherWorkspacePage /></RequireRole>} />
-        <Route path="fees" element={<RequireRole roles={["superadmin", "accountant", "parent", "student"]}><FeesPage /></RequireRole>} />
-        <Route path="fees/collections" element={<RequireRole roles={["superadmin", "accountant"]}><FeeCollectionsPage /></RequireRole>} />
-        <Route path="fees/:studentId/:year" element={<RequireRole roles={["superadmin", "accountant", "parent", "student"]}><FeeDetailPage /></RequireRole>} />
-        <Route path="attendance" element={<RequireRole roles={["superadmin", "admin", "teacher", "student", "parent"]}><AttendancePage /></RequireRole>} />
-        <Route path="attendance/:studentId" element={<RequireRole roles={["superadmin", "admin", "teacher", "student", "parent"]}><AttendanceDetailPage /></RequireRole>} />
-        <Route path="staff" element={<RequireRole roles={["superadmin", "admin", "accountant"]}><StaffDirectoryPage /></RequireRole>} />
-        <Route path="staff-attendance" element={<RequireRole roles={["superadmin", "admin"]}><StaffAttendancePage /></RequireRole>} />
-        <Route path="documents" element={<RequireRole roles={["superadmin", "admin", "staff"]}><DocumentsPage /></RequireRole>} />
-        <Route path="notices" element={<RequireRole roles={["superadmin", "admin", "teacher", "staff"]}><NoticesPage /></RequireRole>} />
-        <Route path="notifications" element={<RequireRole roles={allRoles}><NotificationCenterPage /></RequireRole>} />
-        <Route path="website-leads" element={<RequireRole roles={["superadmin", "admin", "staff"]}><WebsiteLeadsPage /></RequireRole>} />
-        <Route path="users" element={<RequireRole roles={["superadmin", "admin"]}><UserManagementPage /></RequireRole>} />
-        <Route path="school-settings" element={<RequireRole roles={["superadmin"]}><SchoolSettingsPage /></RequireRole>} />
-        <Route path="audit-log" element={<RequireRole roles={["superadmin"]}><AuditLogPage /></RequireRole>} />
+        <Route path="/students" element={<RequireRole roles={["students.view"]}><StudentsPage /></RequireRole>} />
+        <Route path="/students/new" element={<RequireRole roles={["students.create", "students.manage"]}><StudentFormPage /></RequireRole>} />
+        <Route path="/students/:id/edit" element={<RequireRole roles={["students.edit", "students.manage"]}><StudentFormPage /></RequireRole>} />
+        <Route path="/students/:id" element={<RequireRole roles={["students.view"]}><StudentProfilePage /></RequireRole>} />
+        <Route path="/classes" element={<RequireRole roles={["classes.view"]}><ClassesPage /></RequireRole>} />
+        <Route path="/classes/new" element={<RequireRole roles={["classes.create", "classes.manage"]}><ClassFormPage /></RequireRole>} />
+        <Route path="/classes/:id/edit" element={<RequireRole roles={["classes.edit", "classes.manage"]}><ClassFormPage /></RequireRole>} />
+        <Route path="/classes/:id" element={<RequireRole roles={["classes.view"]}><ClassDetailPage /></RequireRole>} />
+        <Route path="/teacher/*" element={<RequireRole roles={["teachers.view"]}><TeacherWorkspacePage /></RequireRole>} />
+        <Route path="fees" element={<RequireRole roles={["fees.view"]}><FeesPage /></RequireRole>} />
+        <Route path="fees/collections" element={<RequireRole roles={["fees.manage"]}><FeeCollectionsPage /></RequireRole>} />
+        <Route path="fees/:studentId/:year" element={<RequireRole roles={["fees.view"]}><FeeDetailPage /></RequireRole>} />
+        <Route path="attendance" element={<RequireRole roles={["attendance.view"]}><AttendancePage /></RequireRole>} />
+        <Route path="attendance/:studentId" element={<RequireRole roles={["attendance.view"]}><AttendanceDetailPage /></RequireRole>} />
+        <Route path="staff" element={<RequireRole roles={["staff.view"]}><StaffDirectoryPage /></RequireRole>} />
+        <Route path="staff-attendance" element={<RequireRole roles={["staff_attendance.view"]}><StaffAttendancePage /></RequireRole>} />
+        <Route path="documents" element={<RequireRole roles={["documents.view"]}><DocumentsPage /></RequireRole>} />
+        <Route path="notices" element={<RequireRole roles={["notices.view"]}><NoticesPage /></RequireRole>} />
+        <Route path="notifications" element={<RequireRole roles={["notifications.view"]}><NotificationCenterPage /></RequireRole>} />
+        <Route path="website-leads" element={<RequireRole roles={["website_leads.view"]}><WebsiteLeadsPage /></RequireRole>} />
+        <Route path="users" element={<RequireRole roles={["users.view"]}><UserManagementPage /></RequireRole>} />
+        <Route path="school-settings" element={<RequireRole roles={["settings.manage"]}><SchoolSettingsPage /></RequireRole>} />
+        <Route path="audit-log" element={<RequireRole roles={["reports.view"]}><AuditLogPage /></RequireRole>} />
         <Route path="profile" element={<RequireRole roles={allRoles}><ProfilePage /></RequireRole>} />
         <Route path="modules/staff/:staffId" element={<RequireRole roles={moduleRoles.staff}><StaffPayrollPage /></RequireRole>} />
         <Route path="modules/transport" element={<RequireRole roles={moduleRoles.transport}><TransportPage /></RequireRole>} />
@@ -156,7 +156,7 @@ function ModuleRoute() {
   }
 
   return (
-    <RequireRole roles={moduleRoles[moduleId] || ["admin"]}>
+    <RequireRole roles={moduleRoles[moduleId] || ["reports.view"]}>
       <ModulePage />
     </RequireRole>
   );

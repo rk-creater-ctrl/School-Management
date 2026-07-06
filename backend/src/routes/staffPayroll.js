@@ -168,7 +168,7 @@ async function buildEmployees(users, monthInput) {
   });
 }
 
-router.get("/employees", auth, authorize("superadmin", "accountant"), async (req, res) => {
+router.get("/employees", auth, authorize("staff.view"), async (req, res) => {
   try {
     const monthInput = getMonthInput(req.query);
     const users = await User.find({ role: { $in: EMPLOYEE_ROLES }, status: { $ne: "suspended" } })
@@ -186,7 +186,7 @@ router.get("/employees", auth, authorize("superadmin", "accountant"), async (req
   }
 });
 
-router.get("/employees/:userId", auth, authorize("superadmin", "accountant"), async (req, res) => {
+router.get("/employees/:userId", auth, authorize("staff.view"), async (req, res) => {
   try {
     const monthInput = getMonthInput(req.query);
     const user = await User.findOne({ _id: req.params.userId, role: { $in: EMPLOYEE_ROLES }, status: { $ne: "suspended" } })
@@ -203,7 +203,7 @@ router.get("/employees/:userId", auth, authorize("superadmin", "accountant"), as
   }
 });
 
-router.get("/me", auth, authorize("teacher", "staff", "accountant", "librarian", "admin"), async (req, res) => {
+router.get("/me", auth, authorize("staff.view"), async (req, res) => {
   try {
     const monthInput = getMonthInput(req.query);
     const employees = await buildEmployees([req.user], monthInput);
@@ -214,7 +214,7 @@ router.get("/me", auth, authorize("teacher", "staff", "accountant", "librarian",
   }
 });
 
-router.put("/employees/:userId/settings", auth, authorize("superadmin", "accountant"), async (req, res) => {
+router.put("/employees/:userId/settings", auth, authorize("staff.manage"), async (req, res) => {
   try {
     const user = await User.findOne({ _id: req.params.userId, role: { $in: EMPLOYEE_ROLES } }).lean();
     if (!user) return res.status(404).json({ error: "Staff account not found" });
@@ -246,7 +246,7 @@ router.put("/employees/:userId/settings", auth, authorize("superadmin", "account
   }
 });
 
-router.patch("/employees/:userId/payments", auth, authorize("superadmin", "accountant"), async (req, res) => {
+router.patch("/employees/:userId/payments", auth, authorize("staff.manage"), async (req, res) => {
   try {
     const user = await User.findOne({ _id: req.params.userId, role: { $in: EMPLOYEE_ROLES } }).lean();
     if (!user) return res.status(404).json({ error: "Staff account not found" });

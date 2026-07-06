@@ -7,37 +7,39 @@ const TeacherProfile = require('../models/TeacherProfile');
 const Fee = require('../models/Fee');
 const Attendance = require('../models/Attendance');
 const { writeActivity } = require('../utils/audit');
-const { filterStudentsForUser, getRole, hasAnyRole } = require('../utils/accessScope');
+const { filterStudentsForUser, getRole, hasAnyRole, hasPermission } = require('../utils/accessScope');
 
 const modulePermissions = {
-  admissions: ['staff'],
-  staff: ['accountant'],
-  payroll: ['accountant'],
-  staffAttendance: ['admin'],
-  exams: ['teacher'],
-  results: ['teacher'],
-  timetable: ['teacher'],
-  assignments: ['admin', 'teacher', 'student'],
-  lms: ['teacher', 'student'],
-  communication: ['admin', 'teacher', 'staff'],
-  transport: ['staff'],
-  library: ['librarian'],
-  hostel: ['staff'],
-  inventory: ['staff'],
-  reports: ['accountant', 'teacher'],
-  ai: ['teacher'],
+  admissions: { view: 'admissions.view', manage: 'admissions.manage' },
+  staff: { view: 'staff.view', manage: 'staff.manage' },
+  payroll: { view: 'staff.view', manage: 'staff.manage' },
+  staffAttendance: { view: 'staff_attendance.view', manage: 'staff_attendance.manage' },
+  exams: { view: 'exams.view', manage: 'exams.manage' },
+  results: { view: 'reports.view', manage: 'reports.manage' },
+  timetable: { view: 'classes.view', manage: 'classes.manage' },
+  assignments: { view: 'classes.view', manage: 'classes.manage' },
+  lms: { view: 'lms.view', manage: 'lms.manage' },
+  communication: { view: 'notices.view', manage: 'notices.manage' },
+  transport: { view: 'transport.view', manage: 'transport.manage' },
+  library: { view: 'library.view', manage: 'library.manage' },
+  hostel: { view: 'admissions.view', manage: 'admissions.manage' },
+  inventory: { view: 'inventory.view', manage: 'inventory.manage' },
+  reports: { view: 'reports.view', manage: 'reports.manage' },
+  ai: { view: 'teachers.view', manage: 'teachers.manage' },
+  schoolSettings: { view: 'settings.view', manage: 'settings.manage' },
 };
 
 function canAccess(user, module) {
   if (!user) return false;
   if (user.role === 'superadmin') return true;
-  return hasAnyRole(user, modulePermissions[module] || []);
+  const config = modulePermissions[module];
+  return config ? hasPermission(user, config.view) || hasPermission(user, config.manage) : false;
 }
 
 function canWrite(user, module) {
   if (!user) return false;
-  if (module === 'staffAttendance') return user.role === 'superadmin';
-  return canAccess(user, module);
+  const config = modulePermissions[module];
+  return config ? hasPermission(user, config.manage) : false;
 }
 
 function scopedQuery(user, extra = {}) {

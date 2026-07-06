@@ -61,7 +61,7 @@ function FeeDetailPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const currentUser = getStoredUser();
   const isSuperadmin = currentUser?.role === "superadmin";
-  const canManageFees = canUseRole(["superadmin", "accountant"], currentUser);
+  const canManageFees = canUseRole(["fees.edit", "fees.manage"], currentUser);
 
   const [student, setStudent] = useState(null);
   const [plan, setPlan] = useState(null);

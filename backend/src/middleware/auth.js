@@ -2,6 +2,7 @@
 
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { hasAccess } = require('../utils/accessScope');
 
 async function authenticate(req, res, next) {
   try {
@@ -25,23 +26,11 @@ function authorize(...roles) {
   return (req, res, next) => {
     if (!req.user) return res.status(401).json({ error: 'Authentication required' });
     if (req.user.role === 'superadmin') return next();
-    if (!hasAnyAccess(req.user, roles)) {
+    if (!hasAccess(req.user, roles)) {
       return res.status(403).json({ error: 'You do not have permission for this action' });
     }
     next();
   };
-}
-
-function hasAnyAccess(user, roles = []) {
-  const allowed = roles.map((role) => String(role || '').toLowerCase().trim()).filter(Boolean);
-  const effectiveRoles = [
-    user.role,
-    ...(Array.isArray(user.permissions) ? user.permissions : []),
-  ]
-    .map((role) => String(role || '').toLowerCase().trim())
-    .filter((role, index) => index === 0 || role !== 'superadmin');
-
-  return allowed.some((role) => effectiveRoles.includes(role));
 }
 
 module.exports = authenticate;

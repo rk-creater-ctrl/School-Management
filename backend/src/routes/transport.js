@@ -7,9 +7,9 @@ const { authorize } = require("../middleware/auth");
 
 const router = express.Router();
 
-const VIEW_ROLES = ["superadmin", "admin", "accountant", "staff"];
-const MANAGE_ROLES = ["superadmin", "admin", "staff"];
-const PAYMENT_ROLES = ["superadmin", "accountant"];
+const VIEW_ROLES = ["transport.view"];
+const MANAGE_ROLES = ["transport.manage"];
+const PAYMENT_ROLES = ["fees.manage"];
 
 const DEFAULT_MONTHS = [
   "April",

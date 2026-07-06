@@ -5,7 +5,7 @@ import { staffPayrollAPI } from "../api";
 import { canUseRole, getStoredUser } from "../permissions";
 import { formatCurrency } from "../utils/feeReports";
 
-const manageableRoles = ["superadmin", "accountant"];
+const manageableRoles = ["staff.manage"];
 const payrollCategories = ["Skilled", "Half-skilled", "Unskilled"];
 
 function currentMonthKey() {

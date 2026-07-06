@@ -6,8 +6,8 @@ const auth = require("../middleware/auth");
 const { authorize } = require("../middleware/auth");
 const { assertStudentAccess, handleAccessError } = require("../utils/accessScope");
 const router = express.Router();
-const ATTENDANCE_VIEW_ROLES = ["admin", "teacher", "student", "parent"];
-const ATTENDANCE_MANAGE_ROLES = ["admin", "teacher"];
+const ATTENDANCE_VIEW_ROLES = ["attendance.view"];
+const ATTENDANCE_MANAGE_ROLES = ["attendance.edit", "attendance.manage"];
 
 router.use(auth);
 

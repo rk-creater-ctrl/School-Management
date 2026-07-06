@@ -208,7 +208,7 @@ async function buildStaffRows(users) {
   });
 }
 
-router.get("/", auth, authorize("superadmin", "admin", "accountant"), async (req, res) => {
+router.get("/", auth, authorize("staff.view"), async (req, res) => {
   try {
     const users = await User.find({ role: { $in: STAFF_ROLES } })
       .select("-password -otpHash")
@@ -221,7 +221,7 @@ router.get("/", auth, authorize("superadmin", "admin", "accountant"), async (req
   }
 });
 
-router.get("/:id/profile", auth, authorize("superadmin", "admin"), async (req, res) => {
+router.get("/:id/profile", auth, authorize("staff.view"), async (req, res) => {
   try {
     const user = await User.findOne({ _id: req.params.id, role: { $in: STAFF_ROLES } })
       .select("-password -otpHash")
@@ -240,7 +240,7 @@ router.get("/:id/profile", auth, authorize("superadmin", "admin"), async (req, r
   }
 });
 
-router.put("/:id/profile", auth, authorize("superadmin", "admin"), async (req, res) => {
+router.put("/:id/profile", auth, authorize("staff.edit", "staff.manage"), async (req, res) => {
   try {
     const user = await User.findOne({ _id: req.params.id, role: { $in: STAFF_ROLES } });
     if (!user) return res.status(404).json({ error: "Staff account not found" });
@@ -283,7 +283,7 @@ router.put("/:id/profile", auth, authorize("superadmin", "admin"), async (req, r
   }
 });
 
-router.get("/:id/progress", auth, authorize("superadmin", "admin"), async (req, res) => {
+router.get("/:id/progress", auth, authorize("staff.view"), async (req, res) => {
   try {
     const user = await User.findOne({ _id: req.params.id, role: { $in: STAFF_ROLES } })
       .select("-password -otpHash")
@@ -357,7 +357,7 @@ router.get("/:id/progress", auth, authorize("superadmin", "admin"), async (req, 
   }
 });
 
-router.post("/", auth, authorize("superadmin"), async (req, res) => {
+router.post("/", auth, authorize("staff.create", "staff.manage"), async (req, res) => {
   try {
     await verifySuperadminPassword(req);
 
@@ -395,7 +395,7 @@ router.post("/", auth, authorize("superadmin"), async (req, res) => {
   }
 });
 
-router.put("/:id", auth, authorize("superadmin"), async (req, res) => {
+router.put("/:id", auth, authorize("staff.edit", "staff.manage"), async (req, res) => {
   try {
     await verifySuperadminPassword(req);
 
@@ -431,7 +431,7 @@ router.put("/:id", auth, authorize("superadmin"), async (req, res) => {
   }
 });
 
-router.delete("/:id", auth, authorize("superadmin"), async (req, res) => {
+router.delete("/:id", auth, authorize("staff.delete", "staff.manage"), async (req, res) => {
   try {
     await verifySuperadminPassword(req);
 

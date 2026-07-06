@@ -1,71 +1,29 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Crown, Edit3, GraduationCap, Save, ShieldCheck, Trash2, UserPlus, UserRound, X, XCircle } from "lucide-react";
+import { CheckCircle2, Crown, Edit3, GraduationCap, RotateCcw, Save, Search, ShieldCheck, Trash2, UserPlus, UserRound, X, XCircle } from "lucide-react";
 import { authAPI } from "../api";
-import { canUseRole, getStoredUser, normalizePermissions } from "../permissions";
+import {
+  allRoles,
+  extractGranularPermissions,
+  getPermissionMeta,
+  getRolePresetPermissions,
+  permissionActionLabels,
+  permissionModules,
+} from "../permissionCatalog";
+import { canUseRole, getEffectivePermissions, getStoredUser, normalizePermissions } from "../permissions";
 
-const roleOptions = ["superadmin", "admin", "teacher", "student", "parent", "accountant", "librarian", "staff"];
-const permissionOptions = [
-  {
-    value: "admin",
-    label: "Admin tools",
-    detail: "Students, classes, attendance, notices, website leads, and transport admin access.",
-  },
-  {
-    value: "teacher",
-    label: "Teacher tools",
-    detail: "Teacher desk, classes, attendance, exams, LMS, and teacher notices.",
-  },
-  {
-    value: "accountant",
-    label: "Accounts tools",
-    detail: "Fees, collections, staff payroll, and transport fee collection.",
-  },
-  {
-    value: "staff",
-    label: "Staff tools",
-    detail: "Documents, admissions, website leads, notices, transport, and inventory.",
-  },
-  {
-    value: "librarian",
-    label: "Library tools",
-    detail: "Library workspace access.",
-  },
-];
+const roleOptions = allRoles;
 
 function UserManagementPage() {
   const currentUser = getStoredUser();
   const isSuperadmin = currentUser?.role === "superadmin";
-  const canReviewPasswords = canUseRole(["superadmin", "admin"], currentUser);
+  const canReviewPasswords = canUseRole(["users.approve", "users.manage"], currentUser);
   const allowedRoles = isSuperadmin ? roleOptions : ["teacher", "student"];
   const [users, setUsers] = useState([]);
   const [passwordRequests, setPasswordRequests] = useState([]);
   const [status, setStatus] = useState("");
   const [editingUser, setEditingUser] = useState(null);
-  const [editForm, setEditForm] = useState({
-    name: "",
-    username: "",
-    email: "",
-    phone: "",
-    studentAdmissionNo: "",
-    role: "student",
-    status: "active",
-    password: "",
-    superadminPassword: "",
-  });
-  const [permissionForm, setPermissionForm] = useState({
-    userId: "",
-    permissions: [],
-    superadminPassword: "",
-  });
-  const [form, setForm] = useState({
-    name: "",
-    username: "",
-    email: "",
-    phone: "",
-    password: "",
-    studentAdmissionNo: "",
-    role: allowedRoles[0],
-  });
+  const [editForm, setEditForm] = useState(createEditState());
+  const [form, setForm] = useState(createCreateState(allowedRoles[0]));
 
   useEffect(() => {
     loadUsers();
@@ -81,27 +39,11 @@ function UserManagementPage() {
       }, {}),
     [users]
   );
-  const selectedPermissionUser = useMemo(
-    () => users.find((user) => getUserId(user) === permissionForm.userId) || null,
-    [permissionForm.userId, users]
-  );
 
   async function loadUsers() {
     try {
       const res = await authAPI.listUsers();
       setUsers(res.data || []);
-      setPermissionForm((current) => {
-        const nextUsers = res.data || [];
-        if (current.userId && nextUsers.some((user) => getUserId(user) === current.userId)) return current;
-        const firstUser = nextUsers.find((user) => user.role !== "superadmin") || nextUsers[0];
-        return firstUser
-          ? {
-              ...current,
-              userId: getUserId(firstUser),
-              permissions: normalizePermissions(firstUser.permissions),
-            }
-          : current;
-      });
     } catch (error) {
       setStatus(error.response?.data?.error || "Unable to load users.");
     }
@@ -112,7 +54,7 @@ function UserManagementPage() {
     try {
       const res = await authAPI.listPasswordRequests();
       setPasswordRequests(res.data || []);
-    } catch (error) {
+    } catch {
       setPasswordRequests([]);
     }
   }
@@ -121,46 +63,47 @@ function UserManagementPage() {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
+  function updateCreateRole(role) {
+    setForm((current) => ({
+      ...current,
+      role,
+      permissions: getRolePresetPermissions(role),
+      permissionMode: "custom",
+    }));
+  }
+
+  function updateCreatePermissions(permissions) {
+    setForm((current) => ({
+      ...current,
+      permissions,
+      permissionMode: "custom",
+    }));
+  }
+
   function openEditUser(user) {
     setEditingUser(user);
-    setEditForm({
-      name: user.name || "",
-      username: user.username || "",
-      email: user.email || "",
-      phone: user.phone || "",
-      studentAdmissionNo: user.studentAdmissionNo || user.linkedStudentAdmissionNo || "",
-      role: user.role || "student",
-      status: user.status || "active",
-      password: "",
-      superadminPassword: "",
-    });
+    setEditForm(createEditState(user));
   }
 
   function updateEditForm(field, value) {
     setEditForm((current) => ({ ...current, [field]: value }));
   }
 
-  function selectPermissionUser(userId) {
-    const user = users.find((item) => getUserId(item) === userId);
-    setPermissionForm({
-      userId,
-      permissions: normalizePermissions(user?.permissions),
-      superadminPassword: "",
-    });
+  function updateEditRole(role) {
+    setEditForm((current) => ({
+      ...current,
+      role,
+      permissions: getRolePresetPermissions(role),
+      permissionMode: "custom",
+    }));
   }
 
-  function togglePermission(permission) {
-    setPermissionForm((current) => {
-      const permissions = normalizePermissions(current.permissions);
-      const nextPermissions = permissions.includes(permission)
-        ? permissions.filter((item) => item !== permission)
-        : [...permissions, permission];
-      return { ...current, permissions: nextPermissions };
-    });
-  }
-
-  function updatePermissionPassword(value) {
-    setPermissionForm((current) => ({ ...current, superadminPassword: value }));
+  function updateEditPermissions(permissions) {
+    setEditForm((current) => ({
+      ...current,
+      permissions,
+      permissionMode: "custom",
+    }));
   }
 
   async function createUser(event) {
@@ -171,8 +114,12 @@ function UserManagementPage() {
         role: form.role,
         username: form.username.toLowerCase().replace(/\s/g, ""),
       };
+      if (!isSuperadmin) {
+        delete payload.permissions;
+        delete payload.permissionMode;
+      }
       await authAPI.createUser(payload);
-      setForm({ name: "", username: "", email: "", phone: "", password: "", studentAdmissionNo: "", role: allowedRoles[0] });
+      setForm(createCreateState(allowedRoles[0]));
       setStatus("User account created.");
       await loadUsers();
     } catch (error) {
@@ -207,6 +154,8 @@ function UserManagementPage() {
         studentAdmissionNo: editForm.studentAdmissionNo,
         role: editForm.role,
         status: editForm.status,
+        permissions: normalizePermissions(editForm.permissions),
+        permissionMode: "custom",
       };
       if (editForm.password) updates.password = editForm.password;
 
@@ -215,29 +164,11 @@ function UserManagementPage() {
         updates,
       });
       setEditingUser(null);
+      setEditForm(createEditState());
       setStatus("User updated.");
       await loadUsers();
     } catch (error) {
       setStatus(error.response?.data?.error || "Unable to update user.");
-    }
-  }
-
-  async function savePermissions(event) {
-    event.preventDefault();
-    if (!isSuperadmin || !permissionForm.userId) return;
-
-    try {
-      await authAPI.updateUser(permissionForm.userId, {
-        password: permissionForm.superadminPassword,
-        updates: {
-          permissions: normalizePermissions(permissionForm.permissions),
-        },
-      });
-      setPermissionForm((current) => ({ ...current, superadminPassword: "" }));
-      setStatus("User permissions saved.");
-      await loadUsers();
-    } catch (error) {
-      setStatus(error.response?.data?.error || "Unable to save permissions.");
     }
   }
 
@@ -267,7 +198,7 @@ function UserManagementPage() {
       {status && <div className="inline-alert">{status}</div>}
 
       <section className="workspace-grid">
-        <form className="chart-card" onSubmit={createUser}>
+        <form className="chart-card wide permission-panel" onSubmit={createUser}>
           <div className="section-heading">
             <div>
               <span className="eyebrow">Create</span>
@@ -285,77 +216,23 @@ function UserManagementPage() {
             <Field label="Linked admission no" value={form.studentAdmissionNo} onChange={(value) => updateForm("studentAdmissionNo", value)} />
             <label className="field">
               <span>Role</span>
-              <select value={form.role} onChange={(event) => updateForm("role", event.target.value)}>
+              <select value={form.role} onChange={(event) => updateCreateRole(event.target.value)}>
                 {allowedRoles.map((role) => <option key={role}>{role}</option>)}
               </select>
             </label>
           </div>
 
+          {isSuperadmin && (
+            <PermissionMatrix
+              label="User Permissions"
+              role={form.role}
+              permissions={form.permissions}
+              onChange={updateCreatePermissions}
+            />
+          )}
+
           <button className="primary-button" type="submit"><UserPlus size={18} /> Create Account</button>
         </form>
-
-        {isSuperadmin && (
-          <form className="chart-card permission-panel" onSubmit={savePermissions}>
-            <div className="section-heading">
-              <div>
-                <span className="eyebrow">Superadmin</span>
-                <h3>Permission Panel</h3>
-              </div>
-              <ShieldCheck size={20} />
-            </div>
-
-            <label className="field">
-              <span>User</span>
-              <select value={permissionForm.userId} onChange={(event) => selectPermissionUser(event.target.value)}>
-                <option value="">Select user</option>
-                {users.map((user) => (
-                  <option key={getUserId(user)} value={getUserId(user)}>
-                    {user.name} ({user.role})
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            {selectedPermissionUser && (
-              <div className="permission-user-card">
-                <strong>{selectedPermissionUser.name}</strong>
-                <span>{selectedPermissionUser.username || selectedPermissionUser.email}</span>
-              </div>
-            )}
-
-            <div className="permission-option-list">
-              {permissionOptions.map((permission) => (
-                <label className="permission-option" key={permission.value}>
-                  <input
-                    checked={permissionForm.permissions.includes(permission.value)}
-                    disabled={selectedPermissionUser?.role === "superadmin"}
-                    onChange={() => togglePermission(permission.value)}
-                    type="checkbox"
-                  />
-                  <span>
-                    <strong>{permission.label}</strong>
-                    <small>{permission.detail}</small>
-                  </span>
-                </label>
-              ))}
-            </div>
-
-            {selectedPermissionUser?.role === "superadmin" && (
-              <div className="inline-alert">Superadmin already has all permissions.</div>
-            )}
-
-            <Field
-              label="Superadmin password"
-              type="password"
-              value={permissionForm.superadminPassword}
-              onChange={updatePermissionPassword}
-              required
-            />
-            <button className="primary-button" type="submit" disabled={!permissionForm.userId}>
-              <Save size={18} /> Save Permissions
-            </button>
-          </form>
-        )}
 
         {canReviewPasswords && (
           <article className="chart-card wide password-request-panel">
@@ -419,17 +296,15 @@ function UserManagementPage() {
                       <strong>{user.name}</strong>
                       <span>{user.username || user.email}</span>
                       {(user.studentAdmissionNo || user.linkedStudentAdmissionNo) && <span>Linked: {user.studentAdmissionNo || user.linkedStudentAdmissionNo}</span>}
-                      {normalizePermissions(user.permissions).length > 0 && (
-                        <span>Permissions: {formatPermissions(user.permissions)}</span>
-                      )}
+                      <span>{formatPermissionSummary(user)}</span>
                     </div>
                     <small>{user.status || "active"}</small>
                     {isSuperadmin && (
                       <div className="user-row-actions">
-                        <button className="icon-button table-icon-action" onClick={() => openEditUser(user)} aria-label="Edit user">
+                        <button className="icon-button table-icon-action" type="button" onClick={() => openEditUser(user)} aria-label="Edit user">
                           <Edit3 size={15} />
                         </button>
-                        <button className="icon-button table-icon-action danger" onClick={() => deleteUser(user)} aria-label="Delete user">
+                        <button className="icon-button table-icon-action danger" type="button" onClick={() => deleteUser(user)} aria-label="Delete user">
                           <Trash2 size={15} />
                         </button>
                       </div>
@@ -464,7 +339,7 @@ function UserManagementPage() {
               <Field label="Linked admission no" value={editForm.studentAdmissionNo} onChange={(value) => updateEditForm("studentAdmissionNo", value)} />
               <label className="field">
                 <span>Role</span>
-                <select value={editForm.role} onChange={(event) => updateEditForm("role", event.target.value)}>
+                <select value={editForm.role} onChange={(event) => updateEditRole(event.target.value)}>
                   {roleOptions.map((role) => <option key={role}>{role}</option>)}
                 </select>
               </label>
@@ -480,11 +355,130 @@ function UserManagementPage() {
               <Field label="Superadmin password" type="password" value={editForm.superadminPassword} onChange={(value) => updateEditForm("superadminPassword", value)} required />
             </div>
 
+            <PermissionMatrix
+              label="Custom Permissions"
+              role={editForm.role}
+              permissions={editForm.permissions}
+              onChange={updateEditPermissions}
+              disabled={editingUser?.role === "superadmin"}
+            />
+
+            {editingUser?.role === "superadmin" && (
+              <div className="inline-alert">Superadmin already has all permissions.</div>
+            )}
+
             <button className="primary-button" type="submit"><Save size={18} /> Save User</button>
           </form>
         </div>
       )}
     </div>
+  );
+}
+
+function PermissionMatrix({ label, role, permissions, onChange, disabled = false }) {
+  const [query, setQuery] = useState("");
+  const normalizedQuery = query.trim().toLowerCase();
+  const selectedPermissions = useMemo(() => normalizePermissions(permissions), [permissions]);
+  const selectedSet = useMemo(() => new Set(selectedPermissions), [selectedPermissions]);
+  const moduleCount = permissionModules.length;
+
+  const visibleModules = useMemo(
+    () =>
+      permissionModules
+        .map((module) => {
+          const permissionsForModule = module.actions
+            .map((action) => {
+              const permissionId = `${module.key}.${action}`;
+              return {
+                id: permissionId,
+                action,
+                actionLabel: permissionActionLabels[action] || action,
+                checked: selectedSet.has(permissionId),
+              };
+            })
+            .filter((item) => {
+              if (!normalizedQuery) return true;
+              return [module.label, item.actionLabel, item.id].some((value) => value.toLowerCase().includes(normalizedQuery));
+            });
+
+          return {
+            ...module,
+            permissions: permissionsForModule,
+          };
+        })
+        .filter((module) => module.permissions.length > 0),
+    [normalizedQuery, selectedSet]
+  );
+
+  function toggle(permissionId) {
+    const next = selectedSet.has(permissionId)
+      ? selectedPermissions.filter((item) => item !== permissionId)
+      : [...selectedPermissions, permissionId];
+    onChange(normalizePermissions(next));
+  }
+
+  function setRoleDefaults() {
+    onChange(getRolePresetPermissions(role));
+  }
+
+  function clearAll() {
+    onChange([]);
+  }
+
+  return (
+    <section className="permission-matrix">
+      <div className="permission-matrix-header">
+        <div>
+          <span className="eyebrow">Access Control</span>
+          <h4>{label}</h4>
+          <p>{selectedPermissions.length} permissions selected across {moduleCount} modules.</p>
+        </div>
+        <div className="permission-matrix-actions">
+          <button className="secondary-button" type="button" onClick={setRoleDefaults} disabled={disabled}>
+            <RotateCcw size={16} /> Use {role} defaults
+          </button>
+          <button className="secondary-button" type="button" onClick={clearAll} disabled={disabled}>
+            Clear all
+          </button>
+        </div>
+      </div>
+
+      <label className="field permission-search-field">
+        <span>Search permissions</span>
+        <div className="search-input-shell">
+          <Search size={16} />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by module or action" />
+        </div>
+      </label>
+
+      <div className="permission-module-grid">
+        {visibleModules.map((module) => (
+          <article className="permission-module-card" key={module.key}>
+            <div className="permission-module-head">
+              <strong>{module.label}</strong>
+              <span>{module.permissions.filter((item) => item.checked).length}/{module.permissions.length}</span>
+            </div>
+            <div className="permission-option-list">
+              {module.permissions.map((permission) => (
+                <label className="permission-option" key={permission.id}>
+                  <input
+                    checked={permission.checked}
+                    disabled={disabled}
+                    onChange={() => toggle(permission.id)}
+                    type="checkbox"
+                  />
+                  <span>
+                    <strong>{permission.actionLabel}</strong>
+                    <small>{permission.id}</small>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </article>
+        ))}
+        {visibleModules.length === 0 && <div className="empty-state">No permissions match this search.</div>}
+      </div>
+    </section>
   );
 }
 
@@ -497,15 +491,68 @@ function Field({ label, value, onChange, type = "text", required }) {
   );
 }
 
-function getUserId(user) {
-  return user?._id || user?.id || "";
+function createCreateState(defaultRole) {
+  return {
+    name: "",
+    username: "",
+    email: "",
+    phone: "",
+    password: "",
+    studentAdmissionNo: "",
+    role: defaultRole,
+    permissions: getRolePresetPermissions(defaultRole),
+    permissionMode: "custom",
+  };
 }
 
-function formatPermissions(permissions) {
-  const labels = new Map(permissionOptions.map((permission) => [permission.value, permission.label]));
-  return normalizePermissions(permissions)
-    .map((permission) => labels.get(permission) || permission)
+function createEditState(user = null) {
+  if (!user) {
+    return {
+      name: "",
+      username: "",
+      email: "",
+      phone: "",
+      studentAdmissionNo: "",
+      role: "student",
+      status: "active",
+      password: "",
+      superadminPassword: "",
+      permissions: getRolePresetPermissions("student"),
+      permissionMode: "custom",
+    };
+  }
+
+  return {
+    name: user.name || "",
+    username: user.username || "",
+    email: user.email || "",
+    phone: user.phone || "",
+    studentAdmissionNo: user.studentAdmissionNo || user.linkedStudentAdmissionNo || "",
+    role: user.role || "student",
+    status: user.status || "active",
+    password: "",
+    superadminPassword: "",
+    permissions: getEditablePermissions(user),
+    permissionMode: "custom",
+  };
+}
+
+function getEditablePermissions(user) {
+  return normalizePermissions(
+    user?.permissionMode === "custom" ? extractGranularPermissions(user.permissions) : getEffectivePermissions(user)
+  );
+}
+
+function formatPermissionSummary(user) {
+  const effectivePermissions = getEffectivePermissions(user);
+  if (!effectivePermissions.length) return "No extra permissions assigned.";
+  if (user.permissionMode === "custom") return `Custom access: ${effectivePermissions.length} permissions`;
+
+  const preview = effectivePermissions
+    .slice(0, 3)
+    .map((permission) => getPermissionMeta(permission)?.label || permission)
     .join(", ");
+  return `Role defaults: ${preview}${effectivePermissions.length > 3 ? "..." : ""}`;
 }
 
 function formatDateTime(value) {

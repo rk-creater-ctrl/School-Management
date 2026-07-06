@@ -1448,6 +1448,202 @@ option {
   color: #ffffff;
   background: #0f172a;
 }
+.receipt-a4-page {
+  width: min(297mm, 100%);
+  min-height: min(210mm, 78vh);
+  border: 0;
+  background: #ffffff;
+}
+.receipt-a4-page.portrait {
+  width: min(210mm, 100%);
+  min-height: min(297mm, 78vh);
+}
+.receipt-two-up {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5mm;
+  padding: 4mm;
+}
+.receipt-a4-page.portrait .receipt-two-up {
+  grid-template-columns: 1fr;
+}
+.receipt-copy {
+  min-width: 0;
+}
+.receipt-print-area {
+  min-height: 200mm;
+  display: flex;
+  flex-direction: column;
+  padding: 3mm;
+  border: 1px solid #111827;
+  border-radius: 8px;
+  color: #000000;
+  font-family: Arial, Helvetica, sans-serif;
+}
+.receipt-a4-page.portrait .receipt-print-area {
+  min-height: 138mm;
+}
+.receipt-copy-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 3mm;
+  color: #000000;
+  font-size: 15px;
+  line-height: 1.1;
+}
+.receipt-copy-head strong {
+  color: #0057ff;
+  font-size: 12px;
+  font-weight: 800;
+}
+.receipt-header {
+  justify-content: center;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.receipt-school-brand {
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: left;
+}
+.receipt-school-brand img,
+.receipt-logo-fallback {
+  width: 62px;
+  height: 62px;
+  flex-basis: 62px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.receipt-header h2 {
+  color: #111111;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+.receipt-school-description {
+  max-width: 86mm;
+  color: #111111;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+.receipt-title-pill {
+  width: fit-content;
+  margin: 4mm auto 3mm;
+  padding: 2mm 6mm;
+  border-radius: 9px;
+  color: #ffffff;
+  background: #4b008f;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+}
+.receipt-info-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1mm 8mm;
+  margin: 0 0 2mm;
+  font-size: 10px;
+}
+.receipt-info-grid div {
+  grid-template-columns: 24mm 1fr;
+  gap: 2mm;
+  align-items: baseline;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.receipt-info-grid span,
+.receipt-info-grid strong {
+  color: #000000;
+  font-size: 10px;
+  line-height: 1.2;
+}
+.receipt-info-grid span {
+  font-weight: 700;
+}
+.receipt-lines {
+  margin: 1mm 0 0;
+  border-collapse: collapse;
+  font-size: 10px;
+  line-height: 1.25;
+}
+.receipt-lines th,
+.receipt-lines td {
+  padding: 1mm 1.2mm;
+  border: 0;
+  color: #000000;
+  background: transparent;
+}
+.receipt-lines thead {
+  border-top: 1px dashed #9ca3af;
+  border-bottom: 1px dashed #9ca3af;
+}
+.receipt-lines th {
+  color: #000000;
+  background: transparent;
+  font-weight: 800;
+}
+.receipt-lines th:not(:first-child),
+.receipt-lines td:not(:first-child) {
+  text-align: right;
+}
+.receipt-lines tbody tr:last-child td {
+  font-weight: 800;
+}
+.receipt-note-box {
+  min-height: 0;
+  margin-top: auto;
+  padding: 2mm 1.2mm 1mm;
+  border: 0;
+  border-top: 1px solid #111827;
+  border-radius: 0;
+  color: #000000;
+  background: transparent;
+}
+.receipt-note-box span {
+  display: inline;
+  color: #000000;
+  font-size: 10px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.receipt-note-box p {
+  display: inline;
+  min-height: 0;
+  color: #000000;
+  font-size: 10px;
+}
+.receipt-footer {
+  margin-top: 1mm;
+  padding-top: 0;
+  border-top: 0;
+  color: #000000;
+  font-size: 10px;
+}
+.receipt-footer > span {
+  visibility: hidden;
+}
+.receipt-signature {
+  min-width: 40mm;
+  gap: 4mm;
+  margin-left: auto;
+}
+.receipt-signature span {
+  display: none;
+}
+.receipt-signature strong {
+  border-top: 0;
+  color: #000000;
+  font-size: 10px;
+  font-style: italic;
+  font-weight: 500;
+}
 .staff-payroll-page {
   display: grid;
   gap: 18px;
@@ -3019,6 +3215,75 @@ option {
   align-content: start;
   gap: 14px;
 }
+.permission-matrix {
+  display: grid;
+  gap: 14px;
+  padding-top: 6px;
+}
+.permission-matrix-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: start;
+  flex-wrap: wrap;
+}
+.permission-matrix-header h4 {
+  margin: 4px 0;
+}
+.permission-matrix-header p {
+  margin: 0;
+  color: var(--muted);
+}
+.permission-matrix-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.permission-search-field {
+  max-width: 420px;
+}
+.search-input-shell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255,255,255,.05);
+}
+.search-input-shell input {
+  border: 0;
+  background: transparent;
+  padding: 11px 0;
+  width: 100%;
+  color: var(--text);
+}
+.search-input-shell input:focus {
+  outline: none;
+}
+.permission-module-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+.permission-module-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255,255,255,.04);
+}
+.permission-module-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+.permission-module-head span {
+  color: var(--muted);
+  font-size: 12px;
+}
 .permission-user-card {
   display: grid;
   gap: 4px;
@@ -3034,6 +3299,9 @@ option {
 .permission-option-list {
   display: grid;
   gap: 8px;
+  max-height: 320px;
+  overflow: auto;
+  padding-right: 2px;
 }
 .permission-option {
   display: grid;
@@ -3061,7 +3329,7 @@ option {
   line-height: 1.35;
 }
 .user-edit-modal {
-  width: min(760px, 100%);
+  width: min(1040px, 100%);
 }
 .student-profile-header {
   display: flex;
@@ -3969,5 +4237,136 @@ td { color: var(--text); }
   body.receipt-printing .receipt-signature strong {
     padding-top: 1.2mm;
     font-size: 8px;
+  }
+  body.receipt-printing.receipt-print-landscape .receipt-a4-page,
+  body.receipt-printing .receipt-a4-page {
+    width: 297mm;
+    height: 210mm;
+    min-height: 210mm;
+    max-width: 297mm;
+    padding: 0;
+  }
+  body.receipt-printing .receipt-two-up {
+    position: relative;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5mm;
+    width: 100%;
+    height: 100%;
+    padding: 4mm 5mm;
+  }
+  body.receipt-printing .receipt-two-up::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    border-left: 1px dashed #9ca3af;
+  }
+  body.receipt-printing .receipt-print-area,
+  body.receipt-printing.receipt-print-landscape .receipt-print-area {
+    min-height: 202mm;
+    height: 202mm;
+    display: flex;
+    flex-direction: column;
+    padding: 3mm;
+    border: 1px solid #111827;
+    border-radius: 3mm;
+    overflow: hidden;
+  }
+  body.receipt-printing .receipt-copy-head {
+    margin-bottom: 3mm;
+    font-size: 12px;
+  }
+  body.receipt-printing .receipt-copy-head strong {
+    font-size: 10px;
+  }
+  body.receipt-printing .receipt-header {
+    justify-content: center;
+    gap: 0;
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+  body.receipt-printing .receipt-school-brand {
+    justify-content: center;
+    gap: 8px;
+  }
+  body.receipt-printing .receipt-school-brand img,
+  body.receipt-printing .receipt-logo-fallback {
+    width: 13mm;
+    height: 13mm;
+    flex-basis: 13mm;
+  }
+  body.receipt-printing .receipt-header h2 {
+    font-size: 11px;
+    line-height: 1.15;
+  }
+  body.receipt-printing .receipt-school-description {
+    max-width: 70mm;
+    margin: .8mm 0 0;
+    font-size: 7px;
+    line-height: 1.25;
+  }
+  body.receipt-printing .receipt-title-pill {
+    margin: 3mm auto 2.5mm;
+    padding: 1.7mm 5mm;
+    border-radius: 3mm;
+    font-size: 11px;
+  }
+  body.receipt-printing .receipt-info-grid,
+  body.receipt-printing.receipt-print-landscape .receipt-info-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .8mm 5mm;
+    margin: 0 0 1.5mm;
+  }
+  body.receipt-printing .receipt-info-grid div {
+    grid-template-columns: 20mm 1fr;
+    gap: 1mm;
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+  body.receipt-printing .receipt-info-grid span,
+  body.receipt-printing .receipt-info-grid strong {
+    font-size: 7.5px;
+    line-height: 1.2;
+  }
+  body.receipt-printing .receipt-lines {
+    margin: 1mm 0 0;
+    font-size: 7.8px;
+    line-height: 1.25;
+  }
+  body.receipt-printing .receipt-lines th,
+  body.receipt-printing .receipt-lines td {
+    padding: .7mm 1mm;
+    border: 0;
+  }
+  body.receipt-printing .receipt-lines thead {
+    border-top: 1px dashed #9ca3af;
+    border-bottom: 1px dashed #9ca3af;
+  }
+  body.receipt-printing .receipt-note-box {
+    min-height: 0;
+    margin-top: auto;
+    padding: 2mm 1mm 0;
+    border: 0;
+    border-top: 1px solid #111827;
+  }
+  body.receipt-printing .receipt-note-box span,
+  body.receipt-printing .receipt-note-box p {
+    font-size: 7.5px;
+  }
+  body.receipt-printing .receipt-footer {
+    margin-top: 1mm;
+    padding-top: 0;
+    border-top: 0;
+    font-size: 7.5px;
+  }
+  body.receipt-printing .receipt-signature {
+    min-width: 34mm;
+    gap: 4mm;
+  }
+  body.receipt-printing .receipt-signature strong {
+    padding-top: 0;
+    border-top: 0;
+    font-size: 7.5px;
   }
 }

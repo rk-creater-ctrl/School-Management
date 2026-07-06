@@ -95,9 +95,9 @@ function StudentProfilePage() {
         </div>
         <div className="student-profile-actions">
           <AcademicYearSelect className="transport-year-field" value={academicYear} onChange={setAcademicYear} />
-          {canUseRole(["superadmin"], user) && <Link className="secondary-button" to={`/students/${student._id}/edit`}>Edit Student</Link>}
+          {canUseRole(["students.edit", "students.manage"], user) && <Link className="secondary-button" to={`/students/${student._id}/edit`}>Edit Student</Link>}
           <Link className="secondary-button" to={`/attendance/${student._id}`}>Attendance</Link>
-          {canUseRole(["superadmin", "accountant", "parent"], user) && <Link className="primary-button" to={`/fees/${student._id}/${academicYear}`}>Open Fees</Link>}
+          {canUseRole(["fees.view"], user) && <Link className="primary-button" to={`/fees/${student._id}/${academicYear}`}>Open Fees</Link>}
         </div>
       </section>
 

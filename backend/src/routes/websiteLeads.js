@@ -95,7 +95,7 @@ router.post("/", async (req, res) => {
   }
 });
 
-router.get("/", auth, authorize("superadmin", "admin", "staff"), async (req, res) => {
+router.get("/", auth, authorize("website_leads.view"), async (req, res) => {
   try {
     const query = {};
     const formType = cleanFormType(req.query.formType);
@@ -126,7 +126,7 @@ router.get("/", auth, authorize("superadmin", "admin", "staff"), async (req, res
   }
 });
 
-router.get("/:id", auth, authorize("superadmin", "admin", "staff"), async (req, res) => {
+router.get("/:id", auth, authorize("website_leads.view"), async (req, res) => {
   try {
     const lead = await WebsiteLead.findById(req.params.id).lean();
     if (!lead) return res.status(404).json({ error: "Website lead not found" });
@@ -136,7 +136,7 @@ router.get("/:id", auth, authorize("superadmin", "admin", "staff"), async (req, 
   }
 });
 
-router.patch("/:id", auth, authorize("superadmin", "admin", "staff"), async (req, res) => {
+router.patch("/:id", auth, authorize("website_leads.edit", "website_leads.manage"), async (req, res) => {
   try {
     const updates = {};
     ["status", "priority"].forEach((field) => {
@@ -161,7 +161,7 @@ router.patch("/:id", auth, authorize("superadmin", "admin", "staff"), async (req
   }
 });
 
-router.delete("/:id", auth, authorize("superadmin"), async (req, res) => {
+router.delete("/:id", auth, authorize("website_leads.delete", "website_leads.manage"), async (req, res) => {
   try {
     const lead = await WebsiteLead.findByIdAndDelete(req.params.id);
     if (!lead) return res.status(404).json({ error: "Website lead not found" });

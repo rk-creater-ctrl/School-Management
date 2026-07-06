@@ -1,9 +1,19 @@
+const {
+  allPermissionIds,
+  extractGranularPermissions,
+  extractLegacyRoles,
+  getRolePresetPermissions,
+  isGranularPermission,
+  normalizeAccess,
+  normalizePermissionMode,
+} = require("./permissionCatalog");
+
 function clean(value) {
   return String(value || "").trim();
 }
 
 function normalize(value) {
-  return clean(value).toLowerCase();
+  return normalizeAccess(clean(value));
 }
 
 function digits(value) {
@@ -23,11 +33,25 @@ function getRole(user) {
 function getEffectiveRoles(user) {
   return [
     user?.role,
-    ...(Array.isArray(user?.permissions) ? user.permissions : []),
+    ...extractLegacyRoles(user?.permissions),
   ]
     .map(normalize)
-    .filter((role, index) => index === 0 || role !== "superadmin")
     .filter(Boolean);
+}
+
+function getEffectivePermissions(user) {
+  if (isSuperadmin(user)) return allPermissionIds;
+
+  const rolePermissions = new Set();
+  getEffectiveRoles(user).forEach((role) => {
+    getRolePresetPermissions(role).forEach((permission) => rolePermissions.add(permission));
+  });
+
+  const customPermissions = extractGranularPermissions(user?.permissions);
+  return [
+    ...(normalizePermissionMode(user?.permissionMode) === "custom" ? [] : [...rolePermissions]),
+    ...customPermissions,
+  ].filter((permission, index, list) => list.indexOf(permission) === index);
 }
 
 function isSuperadmin(user) {
@@ -38,6 +62,18 @@ function hasAnyRole(user, roles = []) {
   if (isSuperadmin(user)) return true;
   const allowedRoles = roles.map(normalize);
   return getEffectiveRoles(user).some((role) => allowedRoles.includes(role));
+}
+
+function hasPermission(user, permission) {
+  const normalized = normalize(permission);
+  if (!normalized) return false;
+  if (isSuperadmin(user)) return true;
+  return getEffectivePermissions(user).includes(normalized);
+}
+
+function hasAccess(user, requirements = []) {
+  if (!requirements.length) return true;
+  return requirements.some((item) => (isGranularPermission(item) ? hasPermission(user, item) : hasAnyRole(user, [item])));
 }
 
 function forbidden(message = "You do not have permission for this action") {
@@ -132,23 +168,23 @@ function studentBelongsToUser(student, user) {
 }
 
 function canViewAllStudents(user) {
-  return hasAnyRole(user, ["admin", "teacher", "accountant", "staff"]);
+  return hasAnyRole(user, ["admin", "teacher", "accountant", "staff"]) || hasPermission(user, "students.manage");
 }
 
 function canManageStudents(user) {
-  return isSuperadmin(user);
+  return hasPermission(user, "students.manage") || hasPermission(user, "students.edit");
 }
 
 function canViewAllFees(user) {
-  return hasAnyRole(user, ["accountant"]);
+  return hasPermission(user, "fees.view") && !["student", "parent"].includes(getRole(user));
 }
 
 function canManageFees(user) {
-  return hasAnyRole(user, ["accountant"]);
+  return hasPermission(user, "fees.manage") || hasPermission(user, "fees.edit");
 }
 
 function canManageAttendance(user) {
-  return hasAnyRole(user, ["admin", "teacher"]);
+  return hasPermission(user, "attendance.manage") || hasPermission(user, "attendance.edit");
 }
 
 function filterStudentsForUser(students, user) {
@@ -183,7 +219,10 @@ module.exports = {
   canViewAllStudents,
   filterStudentsForUser,
   getRole,
+  getEffectivePermissions,
   handleAccessError,
+  hasAccess,
+  hasPermission,
   hasAnyRole,
   requireAnyRole,
   assertStudentAccess,

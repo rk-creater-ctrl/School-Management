@@ -28,7 +28,7 @@ function AttendanceDetailPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const currentUser = getStoredUser();
-  const canManageAttendance = canUseRole(["superadmin", "admin", "teacher"], currentUser);
+  const canManageAttendance = canUseRole(["attendance.edit", "attendance.manage"], currentUser);
 
   useEffect(() => {
     loadData();

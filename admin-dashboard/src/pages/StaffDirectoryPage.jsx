@@ -30,7 +30,7 @@ const emptyForm = {
 function StaffDirectoryPage() {
   const currentUser = getStoredUser();
   const isSuperadmin = currentUser?.role === "superadmin";
-  const canInspectStaff = canUseRole(["superadmin", "admin"], currentUser);
+  const canInspectStaff = canUseRole(["staff.edit", "staff.manage"], currentUser);
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState("");

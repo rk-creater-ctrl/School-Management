@@ -8,7 +8,7 @@ const { filterStudentsForUser, getRole } = require("../utils/accessScope");
 const router = express.Router();
 
 const GLOBAL_CLASS_NAME = "__GLOBAL__";
-const NOTICE_VIEW_ROLES = ["admin", "teacher", "staff", "student", "parent"];
+const NOTICE_VIEW_ROLES = ["notices.view"];
 
 function isFamilyRole(user) {
   return ["parent", "student"].includes(getRole(user));
@@ -56,7 +56,7 @@ router.get("/", auth, authorize(...NOTICE_VIEW_ROLES), async (req, res) => {
 });
 
 // POST /api/class-notices
-router.post("/", auth, authorize("superadmin", "admin", "teacher"), async (req, res) => {
+router.post("/", auth, authorize("notices.create", "notices.manage"), async (req, res) => {
   try {
     const data = { ...req.body };
 
@@ -91,7 +91,7 @@ router.post("/", auth, authorize("superadmin", "admin", "teacher"), async (req, 
 });
 
 // PUT /api/class-notices/:id
-router.put("/:id", auth, authorize("superadmin", "admin"), async (req, res) => {
+router.put("/:id", auth, authorize("notices.edit", "notices.manage"), async (req, res) => {
   try {
     const data = { ...req.body };
 
@@ -119,7 +119,7 @@ router.put("/:id", auth, authorize("superadmin", "admin"), async (req, res) => {
 });
 
 // DELETE /api/class-notices/:id
-router.delete("/:id", auth, authorize("superadmin", "admin"), async (req, res) => {
+router.delete("/:id", auth, authorize("notices.delete", "notices.manage"), async (req, res) => {
   try {
     const notice = await ClassNotice.findByIdAndDelete(req.params.id);
     if (!notice) {

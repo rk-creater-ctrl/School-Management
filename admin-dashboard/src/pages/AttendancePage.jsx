@@ -24,7 +24,7 @@ function AttendancePage() {
   const [deviceMessage, setDeviceMessage] = useState("");
   const [markDate, setMarkDate] = useState(() => new Date().toISOString().slice(0, 10));
   const currentUser = getStoredUser();
-  const canManageAttendance = canUseRole(["superadmin", "admin", "teacher"], currentUser);
+  const canManageAttendance = canUseRole(["attendance.edit", "attendance.manage"], currentUser);
 
   useEffect(() => {
     loadBaseData();
