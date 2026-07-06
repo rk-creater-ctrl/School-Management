@@ -85,6 +85,11 @@ function UserManagementPage() {
     setEditForm(createEditState(user));
   }
 
+  function closeEditUser() {
+    setEditingUser(null);
+    setEditForm(createEditState());
+  }
+
   function updateEditForm(field, value) {
     setEditForm((current) => ({ ...current, [field]: value }));
   }
@@ -163,8 +168,7 @@ function UserManagementPage() {
         password: editForm.superadminPassword,
         updates,
       });
-      setEditingUser(null);
-      setEditForm(createEditState());
+      closeEditUser();
       setStatus("User updated.");
       await loadUsers();
     } catch (error) {
@@ -198,6 +202,121 @@ function UserManagementPage() {
       {status && <div className="inline-alert">{status}</div>}
 
       <section className="workspace-grid">
+        <article className="chart-card wide">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">Directory</span>
+              <h3>Users</h3>
+              <p>Click a user row or the edit button to open that user's permissions.</p>
+            </div>
+          </div>
+
+          <div className="user-role-groups">
+            {Object.entries(groupedUsers).map(([role, roleUsers]) => (
+              <section className="user-role-group" key={role}>
+                <h4>{role}</h4>
+                {roleUsers.map((user) => (
+                  <button
+                    className={editingUser && getUserId(editingUser) === getUserId(user) ? "user-row active" : "user-row"}
+                    key={user._id || user.id}
+                    onClick={() => openEditUser(user)}
+                    type="button"
+                  >
+                    <UserAvatar user={user} />
+                    <div className="user-row-main">
+                      <strong>{user.name}</strong>
+                      <span>{user.username || user.email}</span>
+                      {(user.studentAdmissionNo || user.linkedStudentAdmissionNo) && <span>Linked: {user.studentAdmissionNo || user.linkedStudentAdmissionNo}</span>}
+                      <span>{formatPermissionSummary(user)}</span>
+                    </div>
+                    <small>{user.status || "active"}</small>
+                    {isSuperadmin && (
+                      <div className="user-row-actions">
+                        <button
+                          className="icon-button table-icon-action"
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openEditUser(user);
+                          }}
+                          aria-label="Edit user"
+                        >
+                          <Edit3 size={15} />
+                        </button>
+                        <button
+                          className="icon-button table-icon-action danger"
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            deleteUser(user);
+                          }}
+                          aria-label="Delete user"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </section>
+            ))}
+            {users.length === 0 && <div className="empty-state">No users.</div>}
+          </div>
+        </article>
+
+        {editingUser && isSuperadmin && (
+          <form className="chart-card wide permission-panel" onSubmit={saveUserEdit}>
+            <div className="section-heading">
+              <div>
+                <span className="eyebrow">Selected User</span>
+                <h3>{editingUser.name}</h3>
+                <p>Update user details and adjust exact permissions here.</p>
+              </div>
+              <button className="icon-button" type="button" onClick={closeEditUser} aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="form-grid">
+              <Field label="Name" value={editForm.name} onChange={(value) => updateEditForm("name", value)} required />
+              <Field label="Username" value={editForm.username} onChange={(value) => updateEditForm("username", value.toLowerCase().replace(/\s/g, ""))} required />
+              <Field label="Email" type="email" value={editForm.email} onChange={(value) => updateEditForm("email", value)} required />
+              <Field label="Mobile" value={editForm.phone} onChange={(value) => updateEditForm("phone", value.replace(/\D/g, "").slice(0, 10))} />
+              <Field label="Linked admission no" value={editForm.studentAdmissionNo} onChange={(value) => updateEditForm("studentAdmissionNo", value)} />
+              <label className="field">
+                <span>Role</span>
+                <select value={editForm.role} onChange={(event) => updateEditRole(event.target.value)}>
+                  {roleOptions.map((role) => <option key={role}>{role}</option>)}
+                </select>
+              </label>
+              <label className="field">
+                <span>Status</span>
+                <select value={editForm.status} onChange={(event) => updateEditForm("status", event.target.value)}>
+                  <option>active</option>
+                  <option>inactive</option>
+                  <option>suspended</option>
+                </select>
+              </label>
+              <Field label="New password" type="password" value={editForm.password} onChange={(value) => updateEditForm("password", value)} />
+              <Field label="Superadmin password" type="password" value={editForm.superadminPassword} onChange={(value) => updateEditForm("superadminPassword", value)} required />
+            </div>
+
+            <PermissionMatrix
+              label="Custom Permissions"
+              role={editForm.role}
+              permissions={editForm.permissions}
+              onChange={updateEditPermissions}
+              disabled={editingUser?.role === "superadmin"}
+            />
+
+            {editingUser?.role === "superadmin" && (
+              <div className="inline-alert">Superadmin already has all permissions.</div>
+            )}
+
+            <button className="primary-button" type="submit"><Save size={18} /> Save User</button>
+          </form>
+        )}
+
         <form className="chart-card wide permission-panel" onSubmit={createUser}>
           <div className="section-heading">
             <div>
@@ -224,7 +343,7 @@ function UserManagementPage() {
 
           {isSuperadmin && (
             <PermissionMatrix
-              label="User Permissions"
+              label="New User Permissions"
               role={form.role}
               permissions={form.permissions}
               onChange={updateCreatePermissions}
@@ -276,103 +395,13 @@ function UserManagementPage() {
             </div>
           </article>
         )}
-
-        <article className="chart-card wide">
-          <div className="section-heading">
-            <div>
-              <span className="eyebrow">Directory</span>
-              <h3>Users</h3>
-            </div>
-          </div>
-
-          <div className="user-role-groups">
-            {Object.entries(groupedUsers).map(([role, roleUsers]) => (
-              <section className="user-role-group" key={role}>
-                <h4>{role}</h4>
-                {roleUsers.map((user) => (
-                  <div className="user-row" key={user._id || user.id}>
-                    <UserAvatar user={user} />
-                    <div className="user-row-main">
-                      <strong>{user.name}</strong>
-                      <span>{user.username || user.email}</span>
-                      {(user.studentAdmissionNo || user.linkedStudentAdmissionNo) && <span>Linked: {user.studentAdmissionNo || user.linkedStudentAdmissionNo}</span>}
-                      <span>{formatPermissionSummary(user)}</span>
-                    </div>
-                    <small>{user.status || "active"}</small>
-                    {isSuperadmin && (
-                      <div className="user-row-actions">
-                        <button className="icon-button table-icon-action" type="button" onClick={() => openEditUser(user)} aria-label="Edit user">
-                          <Edit3 size={15} />
-                        </button>
-                        <button className="icon-button table-icon-action danger" type="button" onClick={() => deleteUser(user)} aria-label="Delete user">
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </section>
-            ))}
-            {users.length === 0 && <div className="empty-state">No users.</div>}
-          </div>
-        </article>
       </section>
-
-      {editingUser && (
-        <div className="modal-backdrop" role="dialog" aria-modal="true">
-          <form className="modal-card user-edit-modal" onSubmit={saveUserEdit}>
-            <div className="section-heading">
-              <div>
-                <span className="eyebrow">Superadmin</span>
-                <h3>Edit User</h3>
-              </div>
-              <button className="icon-button" type="button" onClick={() => setEditingUser(null)} aria-label="Close">
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="form-grid">
-              <Field label="Name" value={editForm.name} onChange={(value) => updateEditForm("name", value)} required />
-              <Field label="Username" value={editForm.username} onChange={(value) => updateEditForm("username", value.toLowerCase().replace(/\s/g, ""))} required />
-              <Field label="Email" type="email" value={editForm.email} onChange={(value) => updateEditForm("email", value)} required />
-              <Field label="Mobile" value={editForm.phone} onChange={(value) => updateEditForm("phone", value.replace(/\D/g, "").slice(0, 10))} />
-              <Field label="Linked admission no" value={editForm.studentAdmissionNo} onChange={(value) => updateEditForm("studentAdmissionNo", value)} />
-              <label className="field">
-                <span>Role</span>
-                <select value={editForm.role} onChange={(event) => updateEditRole(event.target.value)}>
-                  {roleOptions.map((role) => <option key={role}>{role}</option>)}
-                </select>
-              </label>
-              <label className="field">
-                <span>Status</span>
-                <select value={editForm.status} onChange={(event) => updateEditForm("status", event.target.value)}>
-                  <option>active</option>
-                  <option>inactive</option>
-                  <option>suspended</option>
-                </select>
-              </label>
-              <Field label="New password" type="password" value={editForm.password} onChange={(value) => updateEditForm("password", value)} />
-              <Field label="Superadmin password" type="password" value={editForm.superadminPassword} onChange={(value) => updateEditForm("superadminPassword", value)} required />
-            </div>
-
-            <PermissionMatrix
-              label="Custom Permissions"
-              role={editForm.role}
-              permissions={editForm.permissions}
-              onChange={updateEditPermissions}
-              disabled={editingUser?.role === "superadmin"}
-            />
-
-            {editingUser?.role === "superadmin" && (
-              <div className="inline-alert">Superadmin already has all permissions.</div>
-            )}
-
-            <button className="primary-button" type="submit"><Save size={18} /> Save User</button>
-          </form>
-        </div>
-      )}
     </div>
   );
+}
+
+function getUserId(user) {
+  return user?._id || user?.id || "";
 }
 
 function PermissionMatrix({ label, role, permissions, onChange, disabled = false }) {

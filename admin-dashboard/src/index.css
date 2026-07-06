@@ -3164,6 +3164,18 @@ option {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(255,255,255,.05);
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+.user-row.active {
+  border-color: rgba(14,165,233,.55);
+  box-shadow: 0 0 0 1px rgba(14,165,233,.2);
+  background: rgba(14,165,233,.08);
+}
+.user-role-group .section-heading p,
+.user-row-main p {
+  margin: 0;
 }
 .user-row span, .user-row small { color: var(--muted); }
 .user-row span { display: block; margin-top: 3px; }
